@@ -1,0 +1,4 @@
+train: C:/path/to/train/images
+val: C:/path/to/val/images
+nc: 2  # number of classes
+names: ['class1', 'class2']  # list of class names
