@@ -1,0 +1,4 @@
+train: C:/path/to/train/images
+val: C:/path/to/val/images
+nc: 2
+names: ['class1', 'class2']
