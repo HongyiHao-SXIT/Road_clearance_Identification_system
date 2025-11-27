@@ -18,16 +18,15 @@ class Profile(contextlib.ContextDecorator):
     """
     YOLOv8 Profile class. Use as a decorator with @Profile() or as a context manager with 'with Profile():'.
 
-    Attributes:
-        t (float): Accumulated time.
-        device (torch.device): Device used for model inference.
-        cuda (bool): Whether CUDA is being used.
+    Example:
+        ```python
+        from ultralytics.utils.ops import Profile
 
-    Examples:
-        >>> from ultralytics.utils.ops import Profile
-        >>> with Profile(device=device) as dt:
-        ...     pass  # slow operation here
-        >>> print(dt)  # prints "Elapsed time is 9.5367431640625e-07 s"
+        with Profile(device=device) as dt:
+            pass  # slow operation here
+
+        print(dt)  # prints "Elapsed time is 9.5367431640625e-07 s"
+        ```
     """
 
     def __init__(self, t=0.0, device: torch.device = None):
@@ -35,8 +34,8 @@ class Profile(contextlib.ContextDecorator):
         Initialize the Profile class.
 
         Args:
-            t (float): Initial time.
-            device (torch.device): Device used for model inference.
+            t (float): Initial time. Defaults to 0.0.
+            device (torch.device): Devices used for model inference. Defaults to None (cpu).
         """
         self.t = t
         self.device = device
@@ -68,12 +67,12 @@ def segment2box(segment, width=640, height=640):
     Convert 1 segment label to 1 box label, applying inside-image constraint, i.e. (xy1, xy2, ...) to (xyxy).
 
     Args:
-        segment (torch.Tensor): The segment label.
-        width (int): The width of the image.
-        height (int): The height of the image.
+        segment (torch.Tensor): the segment label
+        width (int): the width of the image. Defaults to 640
+        height (int): The height of the image. Defaults to 640
 
     Returns:
-        (np.ndarray): The minimum and maximum x and y values of the segment.
+        (np.ndarray): the minimum and maximum x and y values of the segment.
     """
     x, y = segment.T  # segment xy
     # any 3 out of 4 sides are outside the image, clip coordinates first, https://github.com/ultralytics/ultralytics/pull/18294
@@ -92,20 +91,21 @@ def segment2box(segment, width=640, height=640):
 
 def scale_boxes(img1_shape, boxes, img0_shape, ratio_pad=None, padding=True, xywh=False):
     """
-    Rescale bounding boxes from img1_shape to img0_shape.
+    Rescales bounding boxes (in the format of xyxy by default) from the shape of the image they were originally
+    specified in (img1_shape) to the shape of a different image (img0_shape).
 
     Args:
         img1_shape (tuple): The shape of the image that the bounding boxes are for, in the format of (height, width).
-        boxes (torch.Tensor): The bounding boxes of the objects in the image, in the format of (x1, y1, x2, y2).
-        img0_shape (tuple): The shape of the target image, in the format of (height, width).
-        ratio_pad (tuple): A tuple of (ratio, pad) for scaling the boxes. If not provided, the ratio and pad will be
+        boxes (torch.Tensor): the bounding boxes of the objects in the image, in the format of (x1, y1, x2, y2)
+        img0_shape (tuple): the shape of the target image, in the format of (height, width).
+        ratio_pad (tuple): a tuple of (ratio, pad) for scaling the boxes. If not provided, the ratio and pad will be
             calculated based on the size difference between the two images.
         padding (bool): If True, assuming the boxes is based on image augmented by yolo style. If False then do regular
             rescaling.
-        xywh (bool): The box format is xywh or not.
+        xywh (bool): The box format is xywh or not, default=False.
 
     Returns:
-        (torch.Tensor): The scaled bounding boxes, in the format of (x1, y1, x2, y2).
+        boxes (torch.Tensor): The scaled bounding boxes, in the format of (x1, y1, x2, y2)
     """
     if ratio_pad is None:  # calculate from img0_shape
         gain = min(img1_shape[0] / img0_shape[0], img1_shape[1] / img0_shape[1])  # gain  = old / new
@@ -150,8 +150,8 @@ def nms_rotated(boxes, scores, threshold=0.45, use_triu=True):
     Args:
         boxes (torch.Tensor): Rotated bounding boxes, shape (N, 5), format xywhr.
         scores (torch.Tensor): Confidence scores, shape (N,).
-        threshold (float): IoU threshold.
-        use_triu (bool): Whether to use `torch.triu` operator. It'd be useful for disable it
+        threshold (float, optional): IoU threshold. Defaults to 0.45.
+        use_triu (bool, optional): Whether to use `torch.triu` operator. It'd be useful for disable it
             when exporting obb models to some formats that do not support `torch.triu`.
 
     Returns:
@@ -194,7 +194,6 @@ def non_max_suppression(
     in_place=True,
     rotated=False,
     end2end=False,
-    return_idxs=False,
 ):
     """
     Perform non-maximum suppression (NMS) on a set of boxes, with support for masks and multiple labels per box.
@@ -213,16 +212,15 @@ def non_max_suppression(
         multi_label (bool): If True, each box may have multiple labels.
         labels (List[List[Union[int, float, torch.Tensor]]]): A list of lists, where each inner
             list contains the apriori labels for a given image. The list should be in the format
-            output by a dataloader, with each label being a tuple of (class_index, x, y, w, h).
+            output by a dataloader, with each label being a tuple of (class_index, x1, y1, x2, y2).
         max_det (int): The maximum number of boxes to keep after NMS.
-        nc (int): The number of classes output by the model. Any indices after this will be considered masks.
+        nc (int, optional): The number of classes output by the model. Any indices after this will be considered masks.
         max_time_img (float): The maximum time (seconds) for processing one image.
         max_nms (int): The maximum number of boxes into torchvision.ops.nms().
         max_wh (int): The maximum box width and height in pixels.
         in_place (bool): If True, the input prediction tensor will be modified in place.
         rotated (bool): If Oriented Bounding Boxes (OBB) are being passed for NMS.
         end2end (bool): If the model doesn't require NMS.
-        return_idxs (bool): Return the indices of the detections that were kept.
 
     Returns:
         (List[torch.Tensor]): A list of length batch_size, where each element is a tensor of
@@ -250,7 +248,6 @@ def non_max_suppression(
     nm = prediction.shape[1] - nc - 4  # number of masks
     mi = 4 + nc  # mask start index
     xc = prediction[:, 4:mi].amax(1) > conf_thres  # candidates
-    xinds = torch.stack([torch.arange(len(i), device=prediction.device) for i in xc])[..., None]  # to track idxs
 
     # Settings
     # min_wh = 2  # (pixels) minimum box width and height
@@ -266,12 +263,10 @@ def non_max_suppression(
 
     t = time.time()
     output = [torch.zeros((0, 6 + nm), device=prediction.device)] * bs
-    keepi = [torch.zeros((0, 1), device=prediction.device)] * bs  # to store the kept idxs
-    for xi, (x, xk) in enumerate(zip(prediction, xinds)):  # image index, (preds, preds indices)
+    for xi, x in enumerate(prediction):  # image index, image inference
         # Apply constraints
         # x[((x[:, 2:4] < min_wh) | (x[:, 2:4] > max_wh)).any(1), 4] = 0  # width-height
-        filt = xc[xi]  # confidence
-        x, xk = x[filt], xk[filt]
+        x = x[xc[xi]]  # confidence
 
         # Cat apriori labels if autolabelling
         if labels and len(labels[xi]) and not rotated:
@@ -291,25 +286,20 @@ def non_max_suppression(
         if multi_label:
             i, j = torch.where(cls > conf_thres)
             x = torch.cat((box[i], x[i, 4 + j, None], j[:, None].float(), mask[i]), 1)
-            xk = xk[i]
         else:  # best class only
             conf, j = cls.max(1, keepdim=True)
-            filt = conf.view(-1) > conf_thres
-            x = torch.cat((box, conf, j.float(), mask), 1)[filt]
-            xk = xk[filt]
+            x = torch.cat((box, conf, j.float(), mask), 1)[conf.view(-1) > conf_thres]
 
         # Filter by class
         if classes is not None:
-            filt = (x[:, 5:6] == classes).any(1)
-            x, xk = x[filt], xk[filt]
+            x = x[(x[:, 5:6] == classes).any(1)]
 
         # Check shape
         n = x.shape[0]  # number of boxes
         if not n:  # no boxes
             continue
         if n > max_nms:  # excess boxes
-            filt = x[:, 4].argsort(descending=True)[:max_nms]  # sort by confidence and remove excess boxes
-            x, xk = x[filt], xk[filt]
+            x = x[x[:, 4].argsort(descending=True)[:max_nms]]  # sort by confidence and remove excess boxes
 
         # Batched NMS
         c = x[:, 5:6] * (0 if agnostic else max_wh)  # classes
@@ -334,12 +324,12 @@ def non_max_suppression(
         #     if redundant:
         #         i = i[iou.sum(1) > 1]  # require redundancy
 
-        output[xi], keepi[xi] = x[i], xk[i].reshape(-1)
+        output[xi] = x[i]
         if (time.time() - t) > time_limit:
-            LOGGER.warning(f"NMS time limit {time_limit:.3f}s exceeded")
+            LOGGER.warning(f"WARNING ⚠️ NMS time limit {time_limit:.3f}s exceeded")
             break  # time limit exceeded
 
-    return (output, keepi) if return_idxs else output
+    return output
 
 
 def clip_boxes(boxes, shape):
@@ -347,7 +337,7 @@ def clip_boxes(boxes, shape):
     Takes a list of bounding boxes and a shape (height, width) and clips the bounding boxes to the shape.
 
     Args:
-        boxes (torch.Tensor | numpy.ndarray): The bounding boxes to clip.
+        boxes (torch.Tensor): The bounding boxes to clip.
         shape (tuple): The shape of the image.
 
     Returns:
@@ -373,7 +363,7 @@ def clip_coords(coords, shape):
         shape (tuple): A tuple of integers representing the size of the image in the format (height, width).
 
     Returns:
-        (torch.Tensor | numpy.ndarray): Clipped coordinates.
+        (torch.Tensor | numpy.ndarray): Clipped coordinates
     """
     if isinstance(coords, torch.Tensor):  # faster individually (WARNING: inplace .clamp_() Apple MPS bug)
         coords[..., 0] = coords[..., 0].clamp(0, shape[1])  # x
@@ -465,11 +455,10 @@ def xywhn2xyxy(x, w=640, h=640, padw=0, padh=0):
 
     Args:
         x (np.ndarray | torch.Tensor): The bounding box coordinates.
-        w (int): Width of the image.
-        h (int): Height of the image.
-        padw (int): Padding width.
-        padh (int): Padding height.
-
+        w (int): Width of the image. Defaults to 640
+        h (int): Height of the image. Defaults to 640
+        padw (int): Padding width. Defaults to 0
+        padh (int): Padding height. Defaults to 0
     Returns:
         y (np.ndarray | torch.Tensor): The coordinates of the bounding box in the format [x1, y1, x2, y2] where
             x1,y1 is the top-left corner, x2,y2 is the bottom-right corner of the bounding box.
@@ -490,10 +479,10 @@ def xyxy2xywhn(x, w=640, h=640, clip=False, eps=0.0):
 
     Args:
         x (np.ndarray | torch.Tensor): The input bounding box coordinates in (x1, y1, x2, y2) format.
-        w (int): The width of the image.
-        h (int): The height of the image.
-        clip (bool): If True, the boxes will be clipped to the image boundaries.
-        eps (float): The minimum value of the box's width and height.
+        w (int): The width of the image. Defaults to 640
+        h (int): The height of the image. Defaults to 640
+        clip (bool): If True, the boxes will be clipped to the image boundaries. Defaults to False
+        eps (float): The minimum value of the box's width and height. Defaults to 0.0
 
     Returns:
         y (np.ndarray | torch.Tensor): The bounding box coordinates in (x, y, width, height, normalized) format
@@ -613,13 +602,13 @@ def xywhr2xyxyxyxy(x):
 
 def ltwh2xyxy(x):
     """
-    Convert bounding box from [x1, y1, w, h] to [x1, y1, x2, y2] where xy1=top-left, xy2=bottom-right.
+    It converts the bounding box from [x1, y1, w, h] to [x1, y1, x2, y2] where xy1=top-left, xy2=bottom-right.
 
     Args:
-        x (np.ndarray | torch.Tensor): The input image.
+        x (np.ndarray | torch.Tensor): the input image
 
     Returns:
-        (np.ndarray | torch.Tensor): The xyxy coordinates of the bounding boxes.
+        y (np.ndarray | torch.Tensor): the xyxy coordinates of the bounding boxes.
     """
     y = x.clone() if isinstance(x, torch.Tensor) else np.copy(x)
     y[..., 2] = x[..., 2] + x[..., 0]  # width
@@ -629,13 +618,13 @@ def ltwh2xyxy(x):
 
 def segments2boxes(segments):
     """
-    Convert segment labels to box labels, i.e. (cls, xy1, xy2, ...) to (cls, xywh).
+    It converts segment labels to box labels, i.e. (cls, xy1, xy2, ...) to (cls, xywh).
 
     Args:
-        segments (list): List of segments, each segment is a list of points, each point is a list of x, y coordinates.
+        segments (list): list of segments, each segment is a list of points, each point is a list of x, y coordinates
 
     Returns:
-        (np.ndarray): The xywh coordinates of the bounding boxes.
+        (np.ndarray): the xywh coordinates of the bounding boxes.
     """
     boxes = []
     for s in segments:
@@ -649,11 +638,11 @@ def resample_segments(segments, n=1000):
     Inputs a list of segments (n,2) and returns a list of segments (n,2) up-sampled to n points each.
 
     Args:
-        segments (list): A list of (n,2) arrays, where n is the number of points in the segment.
-        n (int): Number of points to resample the segment to.
+        segments (list): a list of (n,2) arrays, where n is the number of points in the segment.
+        n (int): number of points to resample the segment to. Defaults to 1000
 
     Returns:
-        segments (list): The resampled segments.
+        segments (list): the resampled segments.
     """
     for i, s in enumerate(segments):
         if len(s) == n:
@@ -670,14 +659,14 @@ def resample_segments(segments, n=1000):
 
 def crop_mask(masks, boxes):
     """
-    Crop masks to bounding boxes.
+    It takes a mask and a bounding box, and returns a mask that is cropped to the bounding box.
 
     Args:
-        masks (torch.Tensor): [n, h, w] tensor of masks.
-        boxes (torch.Tensor): [n, 4] tensor of bbox coordinates in relative point form.
+        masks (torch.Tensor): [n, h, w] tensor of masks
+        boxes (torch.Tensor): [n, 4] tensor of bbox coordinates in relative point form
 
     Returns:
-        (torch.Tensor): Cropped masks.
+        (torch.Tensor): The masks are being cropped to the bounding box.
     """
     _, h, w = masks.shape
     x1, y1, x2, y2 = torch.chunk(boxes[:, :, None], 4, 1)  # x1 shape(n,1,1)
@@ -696,7 +685,7 @@ def process_mask(protos, masks_in, bboxes, shape, upsample=False):
         masks_in (torch.Tensor): A tensor of shape [n, mask_dim], where n is the number of masks after NMS.
         bboxes (torch.Tensor): A tensor of shape [n, 4], where n is the number of masks after NMS.
         shape (tuple): A tuple of integers representing the size of the input image in the format (h, w).
-        upsample (bool): A flag to indicate whether to upsample the mask to the original image size.
+        upsample (bool): A flag to indicate whether to upsample the mask to the original image size. Default is False.
 
     Returns:
         (torch.Tensor): A binary mask tensor of shape [n, h, w], where n is the number of masks after NMS, and h and w
@@ -722,16 +711,16 @@ def process_mask(protos, masks_in, bboxes, shape, upsample=False):
 
 def process_mask_native(protos, masks_in, bboxes, shape):
     """
-    Apply masks to bounding boxes using the output of the mask head with native upsampling.
+    It takes the output of the mask head, and crops it after upsampling to the bounding boxes.
 
     Args:
-        protos (torch.Tensor): [mask_dim, mask_h, mask_w].
+        protos (torch.Tensor): [mask_dim, mask_h, mask_w]
         masks_in (torch.Tensor): [n, mask_dim], n is number of masks after nms.
         bboxes (torch.Tensor): [n, 4], n is number of masks after nms.
         shape (tuple): The size of the input image (h,w).
 
     Returns:
-        (torch.Tensor): The returned masks with dimensions [h, w, n].
+        masks (torch.Tensor): The returned masks with dimensions [h, w, n].
     """
     c, mh, mw = protos.shape  # CHW
     masks = (masks_in @ protos.float().view(c, -1)).view(-1, mh, mw)
@@ -749,9 +738,6 @@ def scale_masks(masks, shape, padding=True):
         shape (tuple): Height and width.
         padding (bool): If True, assuming the boxes is based on image augmented by yolo style. If False then do regular
             rescaling.
-
-    Returns:
-        (torch.Tensor): Rescaled masks.
     """
     mh, mw = masks.shape[2:]
     gain = min(mh / shape[0], mw / shape[1])  # gain  = old / new
@@ -773,10 +759,10 @@ def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None, normalize=False
 
     Args:
         img1_shape (tuple): The shape of the image that the coords are from.
-        coords (torch.Tensor): The coords to be scaled of shape n,2.
-        img0_shape (tuple): The shape of the image that the segmentation is being applied to.
-        ratio_pad (tuple): The ratio of the image size to the padded image size.
-        normalize (bool): If True, the coordinates will be normalized to the range [0, 1].
+        coords (torch.Tensor): the coords to be scaled of shape n,2.
+        img0_shape (tuple): the shape of the image that the segmentation is being applied to.
+        ratio_pad (tuple): the ratio of the image size to the padded image size.
+        normalize (bool): If True, the coordinates will be normalized to the range [0, 1]. Defaults to False.
         padding (bool): If True, assuming the boxes is based on image augmented by yolo style. If False then do regular
             rescaling.
 
@@ -823,14 +809,14 @@ def regularize_rboxes(rboxes):
 
 def masks2segments(masks, strategy="all"):
     """
-    Convert masks to segments.
+    It takes a list of masks(n,h,w) and returns a list of segments(n,xy).
 
     Args:
-        masks (torch.Tensor): The output of the model, which is a tensor of shape (batch_size, 160, 160).
-        strategy (str): 'all' or 'largest'.
+        masks (torch.Tensor): the output of the model, which is a tensor of shape (batch_size, 160, 160)
+        strategy (str): 'all' or 'largest'. Defaults to all
 
     Returns:
-        (list): List of segment masks.
+        segments (List): list of segment masks
     """
     from ultralytics.data.converter import merge_multi_segment
 
@@ -870,10 +856,10 @@ def clean_str(s):
     Cleans a string by replacing special characters with '_' character.
 
     Args:
-        s (str): A string needing special characters replaced.
+        s (str): a string needing special characters replaced
 
     Returns:
-        (str): A string with special characters replaced by an underscore _.
+        (str): a string with special characters replaced by an underscore _
     """
     return re.sub(pattern="[|@#!¡·$€%&()=?¿^*;:,¨´><+]", repl="_", string=s)
 

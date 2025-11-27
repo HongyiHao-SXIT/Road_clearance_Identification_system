@@ -1,0 +1,6 @@
+train: D:\Dataset\All\Trash\RoadTrash\Yolo V7 Trash 03-22-2023\VOCdevkit\Dataset\images\train
+val: D:\Dataset\All\Trash\RoadTrash\Yolo V7 Trash 03-22-2023\VOCdevkit\Dataset\images\val
+test: D:\Dataset\All\Trash\RoadTrash\Yolo V7 Trash 03-22-2023\VOCdevkit\Dataset\images\test
+
+nc: 17
+names: ['Plastic Bottle', 'Face Mask', 'PaperBag', 'Plastic Cup', 'Paper Cup', 'Cardboard', 'Peel', 'Cans', 'Plastic Wrapper', 'Paperboard', 'Styrofoam', 'Tetra Pack', 'Colored Glass Bottles', 'Plastic Bag', 'Rags', 'Pile of Leaves', 'Glass Bottle']

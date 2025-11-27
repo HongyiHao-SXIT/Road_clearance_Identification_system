@@ -4,7 +4,7 @@ Benchmark a YOLO model formats for speed and accuracy.
 
 Usage:
     from ultralytics.utils.benchmarks import ProfileModels, benchmark
-    ProfileModels(['yolo11n.yaml', 'yolov8s.yaml']).run()
+    ProfileModels(['yolo11n.yaml', 'yolov8s.yaml']).profile()
     benchmark(model='yolo11n.pt', imgsz=160)
 
 Format                  | `format=argument`         | Model
@@ -36,12 +36,13 @@ from pathlib import Path
 
 import numpy as np
 import torch.cuda
+import yaml
 
 from ultralytics import YOLO, YOLOWorld
 from ultralytics.cfg import TASK2DATA, TASK2METRIC
 from ultralytics.engine.exporter import export_formats
-from ultralytics.utils import ARM64, ASSETS, IS_JETSON, LINUX, LOGGER, MACOS, TQDM, WEIGHTS_DIR, YAML
-from ultralytics.utils.checks import IS_PYTHON_3_13, check_imgsz, check_requirements, check_yolo, is_rockchip
+from ultralytics.utils import ARM64, ASSETS, LINUX, LOGGER, MACOS, TQDM, WEIGHTS_DIR
+from ultralytics.utils.checks import IS_PYTHON_3_12, check_imgsz, check_requirements, check_yolo, is_rockchip
 from ultralytics.utils.downloads import safe_download
 from ultralytics.utils.files import file_size
 from ultralytics.utils.torch_utils import get_cpu_info, select_device
@@ -118,15 +119,15 @@ def benchmark(
                     "CoreML and TF.js export only supported on macOS and non-aarch64 Linux"
                 )
             if i in {5}:  # CoreML
-                assert not IS_PYTHON_3_13, "CoreML not supported on Python 3.13"
-            if i in {6, 7, 8, 9, 10}:  # TF SavedModel, TF GraphDef, and TFLite, TF EdgeTPU and TF.js
+                assert not IS_PYTHON_3_12, "CoreML not supported on Python 3.12"
+            if i in {6, 7, 8}:  # TF SavedModel, TF GraphDef, and TFLite
                 assert not isinstance(model, YOLOWorld), "YOLOWorldv2 TensorFlow exports not supported by onnx2tf yet"
-                # assert not IS_PYTHON_MINIMUM_3_12, "TFLite exports not supported on Python>=3.12 yet"
+            if i in {9, 10}:  # TF EdgeTPU and TF.js
+                assert not isinstance(model, YOLOWorld), "YOLOWorldv2 TensorFlow exports not supported by onnx2tf yet"
             if i == 11:  # Paddle
                 assert not isinstance(model, YOLOWorld), "YOLOWorldv2 Paddle exports not supported yet"
-                assert model.task != "obb", "Paddle OBB bug https://github.com/PaddlePaddle/Paddle/issues/72024"
                 assert not is_end2end, "End-to-end models not supported by PaddlePaddle yet"
-                assert (LINUX and not IS_JETSON) or MACOS, "Windows and Jetson Paddle exports not supported yet"
+                assert LINUX or MACOS, "Windows Paddle exports not supported yet"
             if i == 12:  # MNN
                 assert not isinstance(model, YOLOWorld), "YOLOWorldv2 MNN exports not supported yet"
             if i == 13:  # NCNN
@@ -135,7 +136,7 @@ def benchmark(
                 assert not is_end2end
                 assert not isinstance(model, YOLOWorld), "YOLOWorldv2 IMX exports not supported"
                 assert model.task == "detect", "IMX only supported for detection task"
-                assert "C2f" in model.__str__(), "IMX only supported for YOLOv8"  # TODO: enable for YOLO11
+                assert "C2f" in model.__str__(), "IMX only supported for YOLOv8"
             if i == 15:  # RKNN
                 assert not isinstance(model, YOLOWorld), "YOLOWorldv2 RKNN exports not supported yet"
                 assert not is_end2end, "End-to-end models not supported by RKNN yet"
@@ -176,7 +177,7 @@ def benchmark(
         except Exception as e:
             if verbose:
                 assert type(e) is AssertionError, f"Benchmark failure for {name}: {e}"
-            LOGGER.error(f"Benchmark failure for {name}: {e}")
+            LOGGER.warning(f"ERROR ❌️ Benchmark failure for {name}: {e}")
             y.append([name, emoji, round(file_size(filename), 1), None, None, None])  # mAP, t_inference
 
     # Print results
@@ -200,23 +201,7 @@ def benchmark(
 
 
 class RF100Benchmark:
-    """
-    Benchmark YOLO model performance across various formats for speed and accuracy.
-
-    This class provides functionality to benchmark YOLO models on the RF100 dataset collection.
-
-    Attributes:
-        ds_names (List[str]): Names of datasets used for benchmarking.
-        ds_cfg_list (List[Path]): List of paths to dataset configuration files.
-        rf (Roboflow): Roboflow instance for accessing datasets.
-        val_metrics (List[str]): Metrics used for validation.
-
-    Methods:
-        set_key: Set Roboflow API key for accessing datasets.
-        parse_dataset: Parse dataset links and download datasets.
-        fix_yaml: Fix train and validation paths in YAML files.
-        evaluate: Evaluate model performance on validation results.
-    """
+    """Benchmark YOLO model performance across various formats for speed and accuracy."""
 
     def __init__(self):
         """Initialize the RF100Benchmark class for benchmarking YOLO model performance across various formats."""
@@ -249,10 +234,6 @@ class RF100Benchmark:
         Args:
             ds_link_txt (str): Path to the file containing dataset links.
 
-        Returns:
-            ds_names (List[str]): List of dataset names.
-            ds_cfg_list (List[Path]): List of paths to dataset configuration files.
-
         Examples:
             >>> benchmark = RF100Benchmark()
             >>> benchmark.set_key("api_key")
@@ -263,7 +244,7 @@ class RF100Benchmark:
         os.mkdir("ultralytics-benchmarks")
         safe_download("https://github.com/ultralytics/assets/releases/download/v0.0.0/datasets_links.txt")
 
-        with open(ds_link_txt, encoding="utf-8") as file:
+        with open(ds_link_txt) as file:
             for line in file:
                 try:
                     _, url, workspace, project, version = re.split("/+", line.strip())
@@ -272,7 +253,7 @@ class RF100Benchmark:
                     if not Path(proj_version).exists():
                         self.rf.workspace(workspace).project(project).version(version).download("yolov8")
                     else:
-                        LOGGER.info("Dataset already downloaded.")
+                        print("Dataset already downloaded.")
                     self.ds_cfg_list.append(Path.cwd() / proj_version / "data.yaml")
                 except Exception:
                     continue
@@ -281,11 +262,21 @@ class RF100Benchmark:
 
     @staticmethod
     def fix_yaml(path):
-        """Fix the train and validation paths in a given YAML file."""
-        yaml_data = YAML.load(path)
+        """
+        Fixes the train and validation paths in a given YAML file.
+
+        Args:
+            path (str): Path to the YAML file to be fixed.
+
+        Examples:
+            >>> RF100Benchmark.fix_yaml("path/to/data.yaml")
+        """
+        with open(path) as file:
+            yaml_data = yaml.safe_load(file)
         yaml_data["train"] = "train/images"
         yaml_data["val"] = "valid/images"
-        YAML.dump(yaml_data, path)
+        with open(path, "w") as file:
+            yaml.safe_dump(yaml_data, file)
 
     def evaluate(self, yaml_path, val_log_file, eval_log_file, list_ind):
         """
@@ -306,7 +297,8 @@ class RF100Benchmark:
             >>> benchmark.evaluate("path/to/data.yaml", "path/to/val_log.txt", "path/to/eval_log.txt", 0)
         """
         skip_symbols = ["🚀", "⚠️", "💡", "❌"]
-        class_names = YAML.load(yaml_path)["names"]
+        with open(yaml_path) as stream:
+            class_names = yaml.safe_load(stream)["names"]
         with open(val_log_file, encoding="utf-8") as f:
             lines = f.readlines()
             eval_lines = []
@@ -331,15 +323,15 @@ class RF100Benchmark:
                 )
         map_val = 0.0
         if len(eval_lines) > 1:
-            LOGGER.info("Multiple dicts found")
+            print("There's more dicts")
             for lst in eval_lines:
                 if lst["class"] == "all":
                     map_val = lst["map50"]
         else:
-            LOGGER.info("Single dict found")
+            print("There's only one dict res")
             map_val = [res["map50"] for res in eval_lines][0]
 
-        with open(eval_log_file, "a", encoding="utf-8") as f:
+        with open(eval_log_file, "a") as f:
             f.write(f"{self.ds_names[list_ind]}: {map_val}\n")
 
 
@@ -361,20 +353,12 @@ class ProfileModels:
 
     Methods:
         profile: Profiles the models and prints the result.
-        get_files: Gets all relevant model files.
-        get_onnx_model_info: Extracts metadata from an ONNX model.
-        iterative_sigma_clipping: Applies sigma clipping to remove outliers.
-        profile_tensorrt_model: Profiles a TensorRT model.
-        profile_onnx_model: Profiles an ONNX model.
-        generate_table_row: Generates a table row with model metrics.
-        generate_results_dict: Generates a dictionary of profiling results.
-        print_table: Prints a formatted table of results.
 
     Examples:
         Profile models and print results
         >>> from ultralytics.utils.benchmarks import ProfileModels
         >>> profiler = ProfileModels(["yolo11n.yaml", "yolov8s.yaml"], imgsz=640)
-        >>> profiler.run()
+        >>> profiler.profile()
     """
 
     def __init__(
@@ -399,7 +383,7 @@ class ProfileModels:
             imgsz (int): Size of the image used during profiling.
             half (bool): Flag to indicate whether to use FP16 half-precision for TensorRT profiling.
             trt (bool): Flag to indicate whether to profile using TensorRT.
-            device (torch.device | str | None): Device used for profiling. If None, it is determined automatically.
+            device (torch.device | None): Device used for profiling. If None, it is determined automatically.
 
         Notes:
             FP16 'half' argument option removed for ONNX as slower on CPU than FP32.
@@ -408,7 +392,7 @@ class ProfileModels:
             Initialize and profile models
             >>> from ultralytics.utils.benchmarks import ProfileModels
             >>> profiler = ProfileModels(["yolo11n.yaml", "yolov8s.yaml"], imgsz=640)
-            >>> profiler.run()
+            >>> profiler.profile()
         """
         self.paths = paths
         self.num_timed_runs = num_timed_runs
@@ -417,25 +401,14 @@ class ProfileModels:
         self.imgsz = imgsz
         self.half = half
         self.trt = trt  # run TensorRT profiling
-        self.device = device if isinstance(device, torch.device) else select_device(device)
+        self.device = device or torch.device(0 if torch.cuda.is_available() else "cpu")
 
-    def run(self):
-        """
-        Profile YOLO models for speed and accuracy across various formats including ONNX and TensorRT.
-
-        Returns:
-            (List[Dict]): List of dictionaries containing profiling results for each model.
-
-        Examples:
-            Profile models and print results
-            >>> from ultralytics.utils.benchmarks import ProfileModels
-            >>> profiler = ProfileModels(["yolo11n.yaml", "yolov8s.yaml"])
-            >>> results = profiler.run()
-        """
+    def profile(self):
+        """Profiles YOLO models for speed and accuracy across various formats including ONNX and TensorRT."""
         files = self.get_files()
 
         if not files:
-            LOGGER.warning("No matching *.pt or *.onnx files found.")
+            print("No matching *.pt or *.onnx files found.")
             return
 
         table_rows = []
@@ -475,12 +448,7 @@ class ProfileModels:
         return output
 
     def get_files(self):
-        """
-        Return a list of paths for all relevant model files given by the user.
-
-        Returns:
-            (List[Path]): List of Path objects for the model files.
-        """
+        """Returns a list of paths for all relevant model files given by the user."""
         files = []
         for path in self.paths:
             path = Path(path)
@@ -492,7 +460,7 @@ class ProfileModels:
             else:
                 files.extend(glob.glob(str(path)))
 
-        LOGGER.info(f"Profiling: {sorted(files)}")
+        print(f"Profiling: {sorted(files)}")
         return [Path(file) for file in sorted(files)]
 
     @staticmethod
@@ -502,17 +470,7 @@ class ProfileModels:
 
     @staticmethod
     def iterative_sigma_clipping(data, sigma=2, max_iters=3):
-        """
-        Apply iterative sigma clipping to data to remove outliers.
-
-        Args:
-            data (numpy.ndarray): Input data array.
-            sigma (float): Number of standard deviations to use for clipping.
-            max_iters (int): Maximum number of iterations for the clipping process.
-
-        Returns:
-            (numpy.ndarray): Clipped data array with outliers removed.
-        """
+        """Applies iterative sigma clipping to data to remove outliers based on specified sigma and iteration count."""
         data = np.array(data)
         for _ in range(max_iters):
             mean, std = np.mean(data), np.std(data)
@@ -523,17 +481,7 @@ class ProfileModels:
         return data
 
     def profile_tensorrt_model(self, engine_file: str, eps: float = 1e-3):
-        """
-        Profile YOLO model performance with TensorRT, measuring average run time and standard deviation.
-
-        Args:
-            engine_file (str): Path to the TensorRT engine file.
-            eps (float): Small epsilon value to prevent division by zero.
-
-        Returns:
-            mean_time (float): Mean inference time in milliseconds.
-            std_time (float): Standard deviation of inference time in milliseconds.
-        """
+        """Profiles YOLO model performance with TensorRT, measuring average run time and standard deviation."""
         if not self.trt or not Path(engine_file).is_file():
             return 0.0, 0.0
 
@@ -562,17 +510,7 @@ class ProfileModels:
         return np.mean(run_times), np.std(run_times)
 
     def profile_onnx_model(self, onnx_file: str, eps: float = 1e-3):
-        """
-        Profile an ONNX model, measuring average inference time and standard deviation across multiple runs.
-
-        Args:
-            onnx_file (str): Path to the ONNX model file.
-            eps (float): Small epsilon value to prevent division by zero.
-
-        Returns:
-            mean_time (float): Mean inference time in milliseconds.
-            std_time (float): Standard deviation of inference time in milliseconds.
-        """
+        """Profiles an ONNX model, measuring average inference time and standard deviation across multiple runs."""
         check_requirements("onnxruntime")
         import onnxruntime as ort
 
@@ -627,18 +565,7 @@ class ProfileModels:
         return np.mean(run_times), np.std(run_times)
 
     def generate_table_row(self, model_name, t_onnx, t_engine, model_info):
-        """
-        Generate a table row string with model performance metrics.
-
-        Args:
-            model_name (str): Name of the model.
-            t_onnx (tuple): ONNX model inference time statistics (mean, std).
-            t_engine (tuple): TensorRT engine inference time statistics (mean, std).
-            model_info (tuple): Model information (layers, params, gradients, flops).
-
-        Returns:
-            (str): Formatted table row string with model metrics.
-        """
+        """Generates a table row string with model performance metrics including inference times and model details."""
         layers, params, gradients, flops = model_info
         return (
             f"| {model_name:18s} | {self.imgsz} | - | {t_onnx[0]:.1f}±{t_onnx[1]:.1f} ms | {t_engine[0]:.1f}±"
@@ -647,18 +574,7 @@ class ProfileModels:
 
     @staticmethod
     def generate_results_dict(model_name, t_onnx, t_engine, model_info):
-        """
-        Generate a dictionary of profiling results.
-
-        Args:
-            model_name (str): Name of the model.
-            t_onnx (tuple): ONNX model inference time statistics (mean, std).
-            t_engine (tuple): TensorRT engine inference time statistics (mean, std).
-            model_info (tuple): Model information (layers, params, gradients, flops).
-
-        Returns:
-            (dict): Dictionary containing profiling results.
-        """
+        """Generates a dictionary of profiling results including model name, parameters, GFLOPs, and speed metrics."""
         layers, params, gradients, flops = model_info
         return {
             "model/name": model_name,
@@ -670,12 +586,7 @@ class ProfileModels:
 
     @staticmethod
     def print_table(table_rows):
-        """
-        Print a formatted table of model profiling results.
-
-        Args:
-            table_rows (List[str]): List of formatted table row strings.
-        """
+        """Prints a formatted table of model profiling results, including speed and accuracy metrics."""
         gpu = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "GPU"
         headers = [
             "Model",
@@ -689,7 +600,7 @@ class ProfileModels:
         header = "|" + "|".join(f" {h} " for h in headers) + "|"
         separator = "|" + "|".join("-" * (len(h) + 2) for h in headers) + "|"
 
-        LOGGER.info(f"\n\n{header}")
-        LOGGER.info(separator)
+        print(f"\n\n{header}")
+        print(separator)
         for row in table_rows:
-            LOGGER.info(row)
+            print(row)

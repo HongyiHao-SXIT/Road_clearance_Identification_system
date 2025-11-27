@@ -5,7 +5,7 @@ from pathlib import Path
 
 import torch
 
-from ultralytics.utils import YAML, IterableSimpleNamespace
+from ultralytics.utils import IterableSimpleNamespace, yaml_load
 from ultralytics.utils.checks import check_yaml
 
 from .bot_sort import BOTSORT
@@ -25,7 +25,6 @@ def on_predict_start(predictor: object, persist: bool = False) -> None:
 
     Raises:
         AssertionError: If the tracker_type is not 'bytetrack' or 'botsort'.
-        ValueError: If the task is 'classify' as classification doesn't support tracking.
 
     Examples:
         Initialize trackers for a predictor object:
@@ -39,36 +38,16 @@ def on_predict_start(predictor: object, persist: bool = False) -> None:
         return
 
     tracker = check_yaml(predictor.args.tracker)
-    cfg = IterableSimpleNamespace(**YAML.load(tracker))
+    cfg = IterableSimpleNamespace(**yaml_load(tracker))
 
     if cfg.tracker_type not in {"bytetrack", "botsort"}:
         raise AssertionError(f"Only 'bytetrack' and 'botsort' are supported for now, but got '{cfg.tracker_type}'")
-
-    predictor._feats = None  # reset in case used earlier
-    predictor.save_feats = False
-    if cfg.tracker_type == "botsort" and cfg.with_reid and cfg.model == "auto":
-        from ultralytics.nn.modules.head import Detect
-
-        if not (
-            isinstance(predictor.model.model, torch.nn.Module)
-            and isinstance(predictor.model.model.model[-1], Detect)
-            and not predictor.model.model.model[-1].end2end
-        ):
-            cfg.model = "yolo11n-cls.pt"
-        else:
-            predictor.save_feats = True
-
-            # Register hook to extract input of Detect layer
-            def pre_hook(module, input):
-                predictor._feats = [t.clone() for t in input[0]]
-
-            predictor.model.model.model[-1].register_forward_pre_hook(pre_hook)
 
     trackers = []
     for _ in range(predictor.dataset.bs):
         tracker = TRACKER_MAP[cfg.tracker_type](args=cfg, frame_rate=30)
         trackers.append(tracker)
-        if predictor.dataset.mode != "stream":  # only need one tracker for other modes
+        if predictor.dataset.mode != "stream":  # only need one tracker for other modes.
             break
     predictor.trackers = trackers
     predictor.vid_path = [None] * predictor.dataset.bs  # for determining when to reset tracker on new video
@@ -99,7 +78,7 @@ def on_predict_postprocess_end(predictor: object, persist: bool = False) -> None
         det = (result.obb if is_obb else result.boxes).cpu().numpy()
         if len(det) == 0:
             continue
-        tracks = tracker.update(det, result.orig_img, getattr(result, "feats", None))
+        tracks = tracker.update(det, result.orig_img)
         if len(tracks) == 0:
             continue
         idx = tracks[:, -1].astype(int)

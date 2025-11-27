@@ -5,16 +5,16 @@ import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Dict, List, Union
+from typing import Dict, List, Union
 
 import cv2
 
-from ultralytics import __version__
 from ultralytics.utils import (
     ASSETS,
     DEFAULT_CFG,
     DEFAULT_CFG_DICT,
     DEFAULT_CFG_PATH,
+    DEFAULT_SOL_DICT,
     IS_VSCODE,
     LOGGER,
     RANK,
@@ -23,28 +23,26 @@ from ultralytics.utils import (
     SETTINGS,
     SETTINGS_FILE,
     TESTS_RUNNING,
-    YAML,
     IterableSimpleNamespace,
+    __version__,
     checks,
     colorstr,
     deprecation_warn,
     vscode_msg,
+    yaml_load,
+    yaml_print,
 )
 
 # Define valid solutions
 SOLUTION_MAP = {
-    "count": "ObjectCounter",
-    "crop": "ObjectCropper",
-    "blur": "ObjectBlurrer",
-    "workout": "AIGym",
-    "heatmap": "Heatmap",
-    "isegment": "InstanceSegmentation",
-    "visioneye": "VisionEye",
-    "speed": "SpeedEstimator",
-    "queue": "QueueManager",
-    "analytics": "Analytics",
-    "inference": "Inference",
-    "trackzone": "TrackZone",
+    "count": ("ObjectCounter", "count"),
+    "heatmap": ("Heatmap", "generate_heatmap"),
+    "queue": ("QueueManager", "process_queue"),
+    "speed": ("SpeedEstimator", "estimate_speed"),
+    "workout": ("AIGym", "monitor"),
+    "analytics": ("Analytics", "process_data"),
+    "trackzone": ("TrackZone", "trackzone"),
+    "inference": ("Inference", "inference"),
     "help": None,
 }
 
@@ -85,13 +83,13 @@ SOLUTIONS_HELP_MSG = f"""
                   at https://docs.ultralytics.com/usage/cfg
                 
     1. Call object counting solution
-        yolo solutions count source="path/to/video.mp4" region="[(20, 400), (1080, 400), (1080, 360), (20, 360)]"
+        yolo solutions count source="path/to/video/file.mp4" region=[(20, 400), (1080, 400), (1080, 360), (20, 360)]
 
     2. Call heatmaps solution
         yolo solutions heatmap colormap=cv2.COLORMAP_PARULA model=yolo11n.pt
 
     3. Call queue management solution
-        yolo solutions queue region="[(20, 400), (1080, 400), (1080, 360), (20, 360)]" model=yolo11n.pt
+        yolo solutions queue region=[(20, 400), (1080, 400), (1080, 360), (20, 360)] model=yolo11n.pt
 
     4. Call workouts monitoring solution for push-ups
         yolo solutions workout model=yolo11n-pose.pt kpts=[6, 8, 10]
@@ -100,7 +98,7 @@ SOLUTIONS_HELP_MSG = f"""
         yolo solutions analytics analytics_type="pie"
     
     6. Track objects within specific zones
-        yolo solutions trackzone source="path/to/video.mp4" region="[(150, 150), (1130, 150), (1130, 570), (150, 570)]"
+        yolo solutions trackzone source="path/to/video/file.mp4" region=[(150, 150), (1130, 150), (1130, 570), (150, 570)]
         
     7. Streamlit real-time webcam inference GUI
         yolo streamlit-predict
@@ -128,7 +126,7 @@ CLI_HELP_MSG = f"""
         yolo export model=yolo11n-cls.pt format=onnx imgsz=224,128
 
     5. Ultralytics solutions usage
-        yolo solutions count or in {list(SOLUTION_MAP.keys())[1:-1]} source="path/to/video.mp4"
+        yolo solutions count or in {list(SOLUTION_MAP.keys())[1:-1]} source="path/to/video/file.mp4"
 
     6. Run special commands:
         yolo help
@@ -179,7 +177,6 @@ CFG_FRACTION_KEYS = frozenset(
         "bgr",
         "mosaic",
         "mixup",
-        "cutmix",
         "copy_paste",
         "conf",
         "iou",
@@ -213,6 +210,7 @@ CFG_BOOL_KEYS = frozenset(
         "overlap_mask",
         "val",
         "save_json",
+        "save_hybrid",
         "half",
         "dnn",
         "plots",
@@ -240,7 +238,7 @@ CFG_BOOL_KEYS = frozenset(
 )
 
 
-def cfg2dict(cfg: Union[str, Path, Dict, SimpleNamespace]) -> Dict:
+def cfg2dict(cfg):
     """
     Converts a configuration object to a dictionary.
 
@@ -249,7 +247,7 @@ def cfg2dict(cfg: Union[str, Path, Dict, SimpleNamespace]) -> Dict:
             a string, a dictionary, or a SimpleNamespace object.
 
     Returns:
-        (dict): Configuration object in dictionary format.
+        (Dict): Configuration object in dictionary format.
 
     Examples:
         Convert a YAML file path to a dictionary:
@@ -269,13 +267,13 @@ def cfg2dict(cfg: Union[str, Path, Dict, SimpleNamespace]) -> Dict:
         - If cfg is already a dictionary, it's returned unchanged.
     """
     if isinstance(cfg, (str, Path)):
-        cfg = YAML.load(cfg)  # load dict
+        cfg = yaml_load(cfg)  # load dict
     elif isinstance(cfg, SimpleNamespace):
         cfg = vars(cfg)  # convert to dict
     return cfg
 
 
-def get_cfg(cfg: Union[str, Path, Dict, SimpleNamespace] = DEFAULT_CFG_DICT, overrides: Dict = None) -> SimpleNamespace:
+def get_cfg(cfg: Union[str, Path, Dict, SimpleNamespace] = DEFAULT_CFG_DICT, overrides: Dict = None):
     """
     Load and merge configuration data from a file or dictionary, with optional overrides.
 
@@ -314,7 +312,7 @@ def get_cfg(cfg: Union[str, Path, Dict, SimpleNamespace] = DEFAULT_CFG_DICT, ove
             cfg[k] = str(cfg[k])
     if cfg.get("name") == "model":  # assign model to 'name' arg
         cfg["name"] = str(cfg.get("model", "")).split(".")[0]
-        LOGGER.warning(f"'name=model' automatically updated to 'name={cfg['name']}'.")
+        LOGGER.warning(f"WARNING ⚠️ 'name=model' automatically updated to 'name={cfg['name']}'.")
 
     # Type and Value checks
     check_cfg(cfg)
@@ -323,7 +321,7 @@ def get_cfg(cfg: Union[str, Path, Dict, SimpleNamespace] = DEFAULT_CFG_DICT, ove
     return IterableSimpleNamespace(**cfg)
 
 
-def check_cfg(cfg: Dict, hard: bool = True) -> None:
+def check_cfg(cfg, hard=True):
     """
     Checks configuration argument types and values for the Ultralytics library.
 
@@ -332,7 +330,7 @@ def check_cfg(cfg: Dict, hard: bool = True) -> None:
     `CFG_FRACTION_KEYS`, `CFG_INT_KEYS`, and `CFG_BOOL_KEYS`.
 
     Args:
-        cfg (dict): Configuration dictionary to validate.
+        cfg (Dict): Configuration dictionary to validate.
         hard (bool): If True, raises exceptions for invalid types and values; if False, attempts to convert them.
 
     Examples:
@@ -385,7 +383,7 @@ def check_cfg(cfg: Dict, hard: bool = True) -> None:
                 cfg[k] = bool(v)
 
 
-def get_save_dir(args: SimpleNamespace, name: str = None) -> Path:
+def get_save_dir(args, name=None):
     """
     Returns the directory path for saving outputs, derived from arguments or default settings.
 
@@ -417,12 +415,12 @@ def get_save_dir(args: SimpleNamespace, name: str = None) -> Path:
     return Path(save_dir)
 
 
-def _handle_deprecation(custom: Dict) -> Dict:
+def _handle_deprecation(custom):
     """
     Handles deprecated configuration keys by mapping them to current equivalents with deprecation warnings.
 
     Args:
-        custom (dict): Configuration dictionary potentially containing deprecated keys.
+        custom (Dict): Configuration dictionary potentially containing deprecated keys.
 
     Examples:
         >>> custom_config = {"boxes": True, "hide_labels": "False", "line_thickness": 2}
@@ -435,37 +433,34 @@ def _handle_deprecation(custom: Dict) -> Dict:
         equivalents. It also handles value conversions where necessary, such as inverting boolean values for
         'hide_labels' and 'hide_conf'.
     """
-    deprecated_mappings = {
-        "boxes": ("show_boxes", lambda v: v),
-        "hide_labels": ("show_labels", lambda v: not bool(v)),
-        "hide_conf": ("show_conf", lambda v: not bool(v)),
-        "line_thickness": ("line_width", lambda v: v),
-    }
-    removed_keys = {"label_smoothing", "save_hybrid", "crop_fraction"}
-
-    for old_key, (new_key, transform) in deprecated_mappings.items():
-        if old_key not in custom:
-            continue
-        deprecation_warn(old_key, new_key)
-        custom[new_key] = transform(custom.pop(old_key))
-
-    for key in removed_keys:
-        if key not in custom:
-            continue
-        deprecation_warn(key)
-        custom.pop(key)
+    for key in custom.copy().keys():
+        if key == "boxes":
+            deprecation_warn(key, "show_boxes")
+            custom["show_boxes"] = custom.pop("boxes")
+        if key == "hide_labels":
+            deprecation_warn(key, "show_labels")
+            custom["show_labels"] = custom.pop("hide_labels") == "False"
+        if key == "hide_conf":
+            deprecation_warn(key, "show_conf")
+            custom["show_conf"] = custom.pop("hide_conf") == "False"
+        if key == "line_thickness":
+            deprecation_warn(key, "line_width")
+            custom["line_width"] = custom.pop("line_thickness")
+        if key == "label_smoothing":
+            deprecation_warn(key)
+            custom.pop("label_smoothing")
 
     return custom
 
 
-def check_dict_alignment(base: Dict, custom: Dict, e: Exception = None) -> None:
+def check_dict_alignment(base: Dict, custom: Dict, e=None):
     """
     Checks alignment between custom and base configuration dictionaries, handling deprecated keys and providing error
     messages for mismatched keys.
 
     Args:
-        base (dict): The base configuration dictionary containing valid keys.
-        custom (dict): The custom configuration dictionary to be checked for alignment.
+        base (Dict): The base configuration dictionary containing valid keys.
+        custom (Dict): The custom configuration dictionary to be checked for alignment.
         e (Exception | None): Optional error instance passed by the calling function.
 
     Raises:
@@ -512,11 +507,11 @@ def merge_equals_args(args: List[str]) -> List[str]:
         args (List[str]): A list of strings where each element represents an argument or fragment.
 
     Returns:
-        (List[str]): A list of strings where the arguments around isolated '=' are merged and fragments with brackets are joined.
+        List[str]: A list of strings where the arguments around isolated '=' are merged and fragments with brackets are joined.
 
     Examples:
         >>> args = ["arg1", "=", "value", "arg2=", "value2", "arg3", "=value3", "imgsz=[3,", "640,", "640]"]
-        >>> merge_equals_args(args)
+        >>> merge_and_join_args(args)
         ['arg1=value', 'arg2=value2', 'arg3=value3', 'imgsz=[3,640,640]']
     """
     new_args = []
@@ -569,7 +564,9 @@ def handle_yolo_hub(args: List[str]) -> None:
             or 'logout'. For 'login', an optional second argument can be the API key.
 
     Examples:
-        $ yolo login YOUR_API_KEY
+        ```bash
+        yolo login YOUR_API_KEY
+        ```
 
     Notes:
         - The function imports the 'hub' module from ultralytics to perform login and logout operations.
@@ -622,10 +619,10 @@ def handle_yolo_settings(args: List[str]) -> None:
                 check_dict_alignment(SETTINGS, new)
                 SETTINGS.update(new)
 
-        LOGGER.info(SETTINGS)  # print the current settings
+        print(SETTINGS)  # print the current settings
         LOGGER.info(f"💡 Learn more about Ultralytics Settings at {url}")
     except Exception as e:
-        LOGGER.warning(f"settings error: '{e}'. Please see {url} for help.")
+        LOGGER.warning(f"WARNING ⚠️ settings error: '{e}'. Please see {url} for help.")
 
 
 def handle_yolo_solutions(args: List[str]) -> None:
@@ -637,17 +634,21 @@ def handle_yolo_solutions(args: List[str]) -> None:
             solutions: https://docs.ultralytics.com/solutions/, It can include solution name, source,
             and other configuration parameters.
 
+    Returns:
+        None: The function processes video frames and saves the output but doesn't return any value.
+
     Examples:
         Run people counting solution with default settings:
         >>> handle_yolo_solutions(["count"])
 
         Run analytics with custom configuration:
-        >>> handle_yolo_solutions(["analytics", "conf=0.25", "source=path/to/video.mp4"])
+        >>> handle_yolo_solutions(["analytics", "conf=0.25", "source=path/to/video/file.mp4"])
 
         Run inference with custom configuration, requires Streamlit version 1.29.0 or higher.
         >>> handle_yolo_solutions(["inference", "model=yolo11n.pt"])
 
     Notes:
+        - Default configurations are merged from DEFAULT_SOL_DICT and DEFAULT_CFG_DICT
         - Arguments can be provided in the format 'key=value' or as boolean flags
         - Available solutions are defined in SOLUTION_MAP with their respective classes and methods
         - If an invalid solution is provided, defaults to 'count' solution
@@ -655,13 +656,11 @@ def handle_yolo_solutions(args: List[str]) -> None:
         - For 'analytics' solution, frame numbers are tracked for generating analytical graphs
         - Video processing can be interrupted by pressing 'q'
         - Processes video frames sequentially and saves output in .avi format
-        - If no source is specified, downloads and uses a default sample video
+        - If no source is specified, downloads and uses a default sample video\
         - The inference solution will be launched using the 'streamlit run' command.
         - The Streamlit app file is located in the Ultralytics package directory.
     """
-    from ultralytics.solutions.config import SolutionConfig
-
-    full_args_dict = vars(SolutionConfig())  # arguments dictionary
+    full_args_dict = {**DEFAULT_SOL_DICT, **DEFAULT_CFG_DICT}  # arguments dictionary
     overrides = {}
 
     # check dictionary alignment
@@ -678,22 +677,21 @@ def handle_yolo_solutions(args: List[str]) -> None:
     check_dict_alignment(full_args_dict, overrides)  # dict alignment
 
     # Get solution name
-    if not args:
-        LOGGER.warning("No solution name provided. i.e `yolo solutions count`. Defaulting to 'count'.")
-        args = ["count"]
-    if args[0] == "help":
-        LOGGER.info(SOLUTIONS_HELP_MSG)
-        return  # Early return for 'help' case
-    elif args[0] in SOLUTION_MAP:
-        solution_name = args.pop(0)  # Extract the solution name directly
+    if args and args[0] in SOLUTION_MAP:
+        if args[0] != "help":
+            s_n = args.pop(0)  # Extract the solution name directly
+        else:
+            LOGGER.info(SOLUTIONS_HELP_MSG)
     else:
         LOGGER.warning(
-            f"❌ '{args[0]}' is not a valid solution. 💡 Defaulting to 'count'.\n"
-            f"🚀 Available solutions: {', '.join(list(SOLUTION_MAP.keys())[:-1])}\n"
+            f"⚠️ No valid solution provided. Using default 'count'. Available: {', '.join(SOLUTION_MAP.keys())}"
         )
-        solution_name = "count"  # Default for invalid solution
+        s_n = "count"  # Default solution if none provided
 
-    if solution_name == "inference":
+    if args and args[0] == "help":  # Add check for return if user call `yolo solutions help`
+        return
+
+    if s_n == "inference":
         checks.check_requirements("streamlit>=1.29.0")
         LOGGER.info("💡 Loading Ultralytics live inference app...")
         subprocess.run(
@@ -707,21 +705,29 @@ def handle_yolo_solutions(args: List[str]) -> None:
             ]
         )
     else:
-        from ultralytics import solutions
+        cls, method = SOLUTION_MAP[s_n]  # solution class name, method name and default source
 
-        solution = getattr(solutions, SOLUTION_MAP[solution_name])(is_cli=True, **overrides)  # class i.e ObjectCounter
+        from ultralytics import solutions  # import ultralytics solutions
+
+        solution = getattr(solutions, cls)(IS_CLI=True, **overrides)  # get solution class i.e ObjectCounter
+        process = getattr(
+            solution, method
+        )  # get specific function of class for processing i.e, count from ObjectCounter
 
         cap = cv2.VideoCapture(solution.CFG["source"])  # read the video file
-        if solution_name != "crop":
-            # extract width, height and fps of the video file, create save directory and initialize video writer
-            w, h, fps = (
-                int(cap.get(x)) for x in (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS)
-            )
-            if solution_name == "analytics":  # analytical graphs follow fixed shape for output i.e w=1920, h=1080
-                w, h = 1280, 720
-            save_dir = get_save_dir(SimpleNamespace(project="runs/solutions", name="exp", exist_ok=False))
-            save_dir.mkdir(parents=True)  # create the output directory i.e. runs/solutions/exp
-            vw = cv2.VideoWriter(str(save_dir / f"{solution_name}.avi"), cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
+
+        # extract width, height and fps of the video file, create save directory and initialize video writer
+        import os  # for directory creation
+        from pathlib import Path
+
+        from ultralytics.utils.files import increment_path  # for output directory path update
+
+        w, h, fps = (int(cap.get(x)) for x in (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS))
+        if s_n == "analytics":  # analytical graphs follow fixed shape for output i.e w=1920, h=1080
+            w, h = 1920, 1080
+        save_dir = increment_path(Path("runs") / "solutions" / "exp", exist_ok=False)
+        save_dir.mkdir(parents=True, exist_ok=True)  # create the output directory
+        vw = cv2.VideoWriter(os.path.join(save_dir, "solution.avi"), cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
 
         try:  # Process video frames
             f_n = 0  # frame number, required for analytical graphs
@@ -729,16 +735,15 @@ def handle_yolo_solutions(args: List[str]) -> None:
                 success, frame = cap.read()
                 if not success:
                     break
-                results = solution(frame, f_n := f_n + 1) if solution_name == "analytics" else solution(frame)
-                if solution_name != "crop":
-                    vw.write(results.plot_im)
+                frame = process(frame, f_n := f_n + 1) if s_n == "analytics" else process(frame)
+                vw.write(frame)
                 if cv2.waitKey(1) & 0xFF == ord("q"):
                     break
         finally:
             cap.release()
 
 
-def parse_key_value_pair(pair: str = "key=value") -> tuple:
+def parse_key_value_pair(pair: str = "key=value"):
     """
     Parses a key-value pair string into separate key and value components.
 
@@ -772,7 +777,7 @@ def parse_key_value_pair(pair: str = "key=value") -> tuple:
     return k, smart_value(v)
 
 
-def smart_value(v: str) -> Any:
+def smart_value(v):
     """
     Converts a string representation of a value to its appropriate Python type.
 
@@ -817,7 +822,7 @@ def smart_value(v: str) -> Any:
             return v
 
 
-def entrypoint(debug: str = "") -> None:
+def entrypoint(debug=""):
     """
     Ultralytics entrypoint function for parsing and executing command-line arguments.
 
@@ -852,7 +857,7 @@ def entrypoint(debug: str = "") -> None:
         "checks": checks.collect_system_info,
         "version": lambda: LOGGER.info(__version__),
         "settings": lambda: handle_yolo_settings(args[1:]),
-        "cfg": lambda: YAML.print(DEFAULT_CFG_PATH),
+        "cfg": lambda: yaml_print(DEFAULT_CFG_PATH),
         "hub": lambda: handle_yolo_hub(args[1:]),
         "login": lambda: handle_yolo_hub(args),
         "logout": lambda: handle_yolo_hub(args),
@@ -869,17 +874,17 @@ def entrypoint(debug: str = "") -> None:
     overrides = {}  # basic overrides, i.e. imgsz=320
     for a in merge_equals_args(args):  # merge spaces around '=' sign
         if a.startswith("--"):
-            LOGGER.warning(f"argument '{a}' does not require leading dashes '--', updating to '{a[2:]}'.")
+            LOGGER.warning(f"WARNING ⚠️ argument '{a}' does not require leading dashes '--', updating to '{a[2:]}'.")
             a = a[2:]
         if a.endswith(","):
-            LOGGER.warning(f"argument '{a}' does not require trailing comma ',', updating to '{a[:-1]}'.")
+            LOGGER.warning(f"WARNING ⚠️ argument '{a}' does not require trailing comma ',', updating to '{a[:-1]}'.")
             a = a[:-1]
         if "=" in a:
             try:
                 k, v = parse_key_value_pair(a)
                 if k == "cfg" and v is not None:  # custom.yaml passed
                     LOGGER.info(f"Overriding {DEFAULT_CFG_PATH} with {v}")
-                    overrides = {k: val for k, val in YAML.load(checks.check_yaml(v)).items() if k != "cfg"}
+                    overrides = {k: val for k, val in yaml_load(checks.check_yaml(v)).items() if k != "cfg"}
                 else:
                     overrides[k] = v
             except (NameError, SyntaxError, ValueError, AssertionError) as e:
@@ -909,7 +914,7 @@ def entrypoint(debug: str = "") -> None:
     mode = overrides.get("mode")
     if mode is None:
         mode = DEFAULT_CFG.mode or "predict"
-        LOGGER.warning(f"'mode' argument is missing. Valid modes are {MODES}. Using default 'mode={mode}'.")
+        LOGGER.warning(f"WARNING ⚠️ 'mode' argument is missing. Valid modes are {MODES}. Using default 'mode={mode}'.")
     elif mode not in MODES:
         raise ValueError(f"Invalid 'mode={mode}'. Valid modes are {MODES}.\n{CLI_HELP_MSG}")
 
@@ -919,7 +924,7 @@ def entrypoint(debug: str = "") -> None:
         if task not in TASKS:
             if task == "track":
                 LOGGER.warning(
-                    "invalid 'task=track', setting 'task=detect' and 'mode=track'. Valid tasks are {TASKS}.\n{CLI_HELP_MSG}."
+                    "WARNING ⚠️ invalid 'task=track', setting 'task=detect' and 'mode=track'. Valid tasks are {TASKS}.\n{CLI_HELP_MSG}."
                 )
                 task, mode = "detect", "track"
             else:
@@ -931,7 +936,7 @@ def entrypoint(debug: str = "") -> None:
     model = overrides.pop("model", DEFAULT_CFG.model)
     if model is None:
         model = "yolo11n.pt"
-        LOGGER.warning(f"'model' argument is missing. Using default 'model={model}'.")
+        LOGGER.warning(f"WARNING ⚠️ 'model' argument is missing. Using default 'model={model}'.")
     overrides["model"] = model
     stem = Path(model).stem.lower()
     if "rtdetr" in stem:  # guess architecture
@@ -957,7 +962,7 @@ def entrypoint(debug: str = "") -> None:
     if task != model.task:
         if task:
             LOGGER.warning(
-                f"conflicting 'task={task}' passed with 'task={model.task}' model. "
+                f"WARNING ⚠️ conflicting 'task={task}' passed with 'task={model.task}' model. "
                 f"Ignoring 'task={task}' and updating to 'task={model.task}' to match model."
             )
         task = model.task
@@ -967,15 +972,15 @@ def entrypoint(debug: str = "") -> None:
         overrides["source"] = (
             "https://ultralytics.com/images/boats.jpg" if task == "obb" else DEFAULT_CFG.source or ASSETS
         )
-        LOGGER.warning(f"'source' argument is missing. Using default 'source={overrides['source']}'.")
+        LOGGER.warning(f"WARNING ⚠️ 'source' argument is missing. Using default 'source={overrides['source']}'.")
     elif mode in {"train", "val"}:
         if "data" not in overrides and "resume" not in overrides:
             overrides["data"] = DEFAULT_CFG.data or TASK2DATA.get(task or DEFAULT_CFG.task, DEFAULT_CFG.data)
-            LOGGER.warning(f"'data' argument is missing. Using default 'data={overrides['data']}'.")
+            LOGGER.warning(f"WARNING ⚠️ 'data' argument is missing. Using default 'data={overrides['data']}'.")
     elif mode == "export":
         if "format" not in overrides:
             overrides["format"] = DEFAULT_CFG.format or "torchscript"
-            LOGGER.warning(f"'format' argument is missing. Using default 'format={overrides['format']}'.")
+            LOGGER.warning(f"WARNING ⚠️ 'format' argument is missing. Using default 'format={overrides['format']}'.")
 
     # Run command in python
     getattr(model, mode)(**overrides)  # default args from model
@@ -989,7 +994,7 @@ def entrypoint(debug: str = "") -> None:
 
 
 # Special modes --------------------------------------------------------------------------------------------------------
-def copy_default_cfg() -> None:
+def copy_default_cfg():
     """
     Copies the default configuration file and creates a new one with '_copy' appended to its name.
 

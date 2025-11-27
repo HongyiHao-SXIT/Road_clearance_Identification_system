@@ -21,7 +21,6 @@ import torch
 from torch import distributed as dist
 from torch import nn, optim
 
-from ultralytics import __version__
 from ultralytics.cfg import get_cfg, get_save_dir
 from ultralytics.data.utils import check_cls_dataset, check_det_dataset
 from ultralytics.nn.tasks import attempt_load_one_weight, attempt_load_weights
@@ -31,11 +30,12 @@ from ultralytics.utils import (
     LOGGER,
     RANK,
     TQDM,
-    YAML,
+    __version__,
     callbacks,
     clean_url,
     colorstr,
     emojis,
+    yaml_save,
 )
 from ultralytics.utils.autobatch import check_train_batch_size
 from ultralytics.utils.checks import check_amp, check_file, check_imgsz, check_model_file_from_stem, print_args
@@ -77,6 +77,8 @@ class BaseTrainer:
         amp (bool): Flag to enable AMP (Automatic Mixed Precision).
         scaler (amp.GradScaler): Gradient scaler for AMP.
         data (str): Path to data.
+        trainset (torch.utils.data.Dataset): Training dataset.
+        testset (torch.utils.data.Dataset): Testing dataset.
         ema (nn.Module): EMA (Exponential Moving Average) of the model.
         resume (bool): Resume training from a checkpoint.
         lf (nn.Module): Loss function.
@@ -87,24 +89,19 @@ class BaseTrainer:
         tloss (float): Total loss value.
         loss_names (list): List of loss names.
         csv (Path): Path to results CSV file.
-        metrics (dict): Dictionary of metrics.
-        plots (dict): Dictionary of plots.
     """
 
     def __init__(self, cfg=DEFAULT_CFG, overrides=None, _callbacks=None):
         """
-        Initialize the BaseTrainer class.
+        Initializes the BaseTrainer class.
 
         Args:
             cfg (str, optional): Path to a configuration file. Defaults to DEFAULT_CFG.
             overrides (dict, optional): Configuration overrides. Defaults to None.
-            _callbacks (list, optional): List of callback functions. Defaults to None.
         """
         self.args = get_cfg(cfg, overrides)
         self.check_resume(overrides)
         self.device = select_device(self.args.device, self.args.batch)
-        # update "-1" devices so post-training val does not repeat search
-        self.args.device = os.getenv("CUDA_VISIBLE_DEVICES") if "cuda" in str(self.device) else str(self.device)
         self.validator = None
         self.metrics = None
         self.plots = {}
@@ -117,7 +114,7 @@ class BaseTrainer:
         if RANK in {-1, 0}:
             self.wdir.mkdir(parents=True, exist_ok=True)  # make dir
             self.args.save_dir = str(self.save_dir)
-            YAML.save(self.save_dir / "args.yaml", vars(self.args))  # save run args
+            yaml_save(self.save_dir / "args.yaml", vars(self.args))  # save run args
         self.last, self.best = self.wdir / "last.pt", self.wdir / "best.pt"  # checkpoint paths
         self.save_period = self.args.save_period
 
@@ -134,8 +131,7 @@ class BaseTrainer:
         # Model and Dataset
         self.model = check_model_file_from_stem(self.args.model)  # add suffix, i.e. yolo11n -> yolo11n.pt
         with torch_distributed_zero_first(LOCAL_RANK):  # avoid auto-downloading dataset multiple times
-            self.data = self.get_dataset()
-
+            self.trainset, self.testset = self.get_dataset()
         self.ema = None
 
         # Optimization utils init
@@ -160,11 +156,11 @@ class BaseTrainer:
             callbacks.add_integration_callbacks(self)
 
     def add_callback(self, event: str, callback):
-        """Append the given callback to the event's callback list."""
+        """Appends the given callback."""
         self.callbacks[event].append(callback)
 
     def set_callback(self, event: str, callback):
-        """Override the existing callbacks with the given callback for the specified event."""
+        """Overrides the existing callbacks with the given callback."""
         self.callbacks[event] = [callback]
 
     def run_callbacks(self, event: str):
@@ -189,11 +185,12 @@ class BaseTrainer:
         if world_size > 1 and "LOCAL_RANK" not in os.environ:
             # Argument checks
             if self.args.rect:
-                LOGGER.warning("'rect=True' is incompatible with Multi-GPU training, setting 'rect=False'")
+                LOGGER.warning("WARNING ⚠️ 'rect=True' is incompatible with Multi-GPU training, setting 'rect=False'")
                 self.args.rect = False
             if self.args.batch < 1.0:
                 LOGGER.warning(
-                    "'batch<1' for AutoBatch is incompatible with Multi-GPU training, setting default 'batch=16'"
+                    "WARNING ⚠️ 'batch<1' for AutoBatch is incompatible with Multi-GPU training, setting "
+                    "default 'batch=16'"
                 )
                 self.args.batch = 16
 
@@ -219,7 +216,7 @@ class BaseTrainer:
         self.scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=self.lf)
 
     def _setup_ddp(self, world_size):
-        """Initialize and set the DistributedDataParallel parameters for training."""
+        """Initializes and sets the DistributedDataParallel parameters for training."""
         torch.cuda.set_device(RANK)
         self.device = torch.device("cuda", RANK)
         # LOGGER.info(f'DDP info: RANK {RANK}, WORLD_SIZE {world_size}, DEVICE {self.device}')
@@ -232,7 +229,7 @@ class BaseTrainer:
         )
 
     def _setup_train(self, world_size):
-        """Build dataloaders and optimizer on correct rank process."""
+        """Builds dataloaders and optimizer on correct rank process."""
         # Model
         self.run_callbacks("on_pretrain_routine_start")
         ckpt = self.setup_model()
@@ -249,15 +246,14 @@ class BaseTrainer:
         )
         always_freeze_names = [".dfl"]  # always freeze these layers
         freeze_layer_names = [f"model.{x}." for x in freeze_list] + always_freeze_names
-        self.freeze_layer_names = freeze_layer_names
         for k, v in self.model.named_parameters():
             # v.register_hook(lambda x: torch.nan_to_num(x))  # NaN to 0 (commented for erratic training results)
             if any(x in k for x in freeze_layer_names):
                 LOGGER.info(f"Freezing layer '{k}'")
                 v.requires_grad = False
             elif not v.requires_grad and v.dtype.is_floating_point:  # only floating point Tensor can require gradients
-                LOGGER.warning(
-                    f"setting 'requires_grad=True' for frozen layer '{k}'. "
+                LOGGER.info(
+                    f"WARNING ⚠️ setting 'requires_grad=True' for frozen layer '{k}'. "
                     "See ultralytics.engine.trainer for customization of frozen layers."
                 )
                 v.requires_grad = True
@@ -269,7 +265,7 @@ class BaseTrainer:
             self.amp = torch.tensor(check_amp(self.model), device=self.device)
             callbacks.default_callbacks = callbacks_backup  # restore callbacks
         if RANK > -1 and world_size > 1:  # DDP
-            dist.broadcast(self.amp.int(), src=0)  # broadcast from rank 0 to all other ranks; gloo errors with boolean
+            dist.broadcast(self.amp, src=0)  # broadcast the tensor from rank 0 to all other ranks (returns None)
         self.amp = bool(self.amp)  # as boolean
         self.scaler = (
             torch.amp.GradScaler("cuda", enabled=self.amp) if TORCH_2_4 else torch.cuda.amp.GradScaler(enabled=self.amp)
@@ -288,16 +284,11 @@ class BaseTrainer:
 
         # Dataloaders
         batch_size = self.batch_size // max(world_size, 1)
-        self.train_loader = self.get_dataloader(
-            self.data["train"], batch_size=batch_size, rank=LOCAL_RANK, mode="train"
-        )
+        self.train_loader = self.get_dataloader(self.trainset, batch_size=batch_size, rank=LOCAL_RANK, mode="train")
         if RANK in {-1, 0}:
             # Note: When training DOTA dataset, double batch size could get OOM on images with >2000 objects.
             self.test_loader = self.get_dataloader(
-                self.data.get("val") or self.data.get("test"),
-                batch_size=batch_size if self.args.task == "obb" else batch_size * 2,
-                rank=-1,
-                mode="val",
+                self.testset, batch_size=batch_size if self.args.task == "obb" else batch_size * 2, rank=-1, mode="val"
             )
             self.validator = self.get_validator()
             metric_keys = self.validator.metrics.keys + self.label_loss_items(prefix="val")
@@ -326,7 +317,7 @@ class BaseTrainer:
         self.run_callbacks("on_pretrain_routine_end")
 
     def _do_train(self, world_size=1):
-        """Train the model with the specified world size."""
+        """Train completed, evaluate and plot if specified by arguments."""
         if world_size > 1:
             self._setup_ddp(world_size)
         self._setup_train(world_size)
@@ -356,7 +347,7 @@ class BaseTrainer:
                 warnings.simplefilter("ignore")  # suppress 'Detected lr_scheduler.step() before optimizer.step()'
                 self.scheduler.step()
 
-            self._model_train()
+            self.model.train()
             if RANK != -1:
                 self.train_loader.sampler.set_epoch(epoch)
             pbar = enumerate(self.train_loader)
@@ -387,8 +378,7 @@ class BaseTrainer:
                 # Forward
                 with autocast(self.amp):
                     batch = self.preprocess_batch(batch)
-                    loss, self.loss_items = self.model(batch)
-                    self.loss = loss.sum()
+                    self.loss, self.loss_items = self.model(batch)
                     if RANK != -1:
                         self.loss *= world_size
                     self.tloss = (
@@ -462,8 +452,7 @@ class BaseTrainer:
                 self.scheduler.last_epoch = self.epoch  # do not move
                 self.stop |= epoch >= self.epochs  # stop if exceeded epochs
             self.run_callbacks("on_fit_epoch_end")
-            if self._get_memory(fraction=True) > 0.5:
-                self._clear_memory()  # clear if memory utilization > 50%
+            self._clear_memory()
 
             # Early Stopping
             if RANK != -1:  # if DDP training
@@ -487,7 +476,7 @@ class BaseTrainer:
         self.run_callbacks("teardown")
 
     def auto_batch(self, max_num_obj=0):
-        """Calculate optimal batch size based on model and device memory constraints."""
+        """Get batch size by calculating memory occupation of model."""
         return check_train_batch_size(
             model=self.model,
             imgsz=self.args.imgsz,
@@ -496,21 +485,18 @@ class BaseTrainer:
             max_num_obj=max_num_obj,
         )  # returns batch size
 
-    def _get_memory(self, fraction=False):
-        """Get accelerator memory utilization in GB or as a fraction of total memory."""
-        memory, total = 0, 0
+    def _get_memory(self):
+        """Get accelerator memory utilization in GB."""
         if self.device.type == "mps":
             memory = torch.mps.driver_allocated_memory()
-            if fraction:
-                return __import__("psutil").virtual_memory().percent / 100
-        elif self.device.type != "cpu":
+        elif self.device.type == "cpu":
+            memory = 0
+        else:
             memory = torch.cuda.memory_reserved()
-            if fraction:
-                total = torch.cuda.get_device_properties(self.device).total_memory
-        return ((memory / total) if total > 0 else 0) if fraction else (memory / 2**30)
+        return memory / (2**30)
 
     def _clear_memory(self):
-        """Clear accelerator memory by calling garbage collector and emptying cache."""
+        """Clear accelerator memory on different platforms."""
         gc.collect()
         if self.device.type == "mps":
             torch.mps.empty_cache()
@@ -520,18 +506,10 @@ class BaseTrainer:
             torch.cuda.empty_cache()
 
     def read_results_csv(self):
-        """Read results.csv into a dictionary using pandas."""
+        """Read results.csv into a dict using pandas."""
         import pandas as pd  # scope for faster 'import ultralytics'
 
         return pd.read_csv(self.csv).to_dict(orient="list")
-
-    def _model_train(self):
-        """Set model in training mode."""
-        self.model.train()
-        # Freeze BN stat
-        for n, m in self.model.named_modules():
-            if any(filter(lambda f: f in n, self.freeze_layer_names)) and isinstance(m, nn.BatchNorm2d):
-                m.eval()
 
     def save_model(self):
         """Save model training checkpoints with additional metadata."""
@@ -570,10 +548,9 @@ class BaseTrainer:
 
     def get_dataset(self):
         """
-        Get train and validation datasets from data dictionary.
+        Get train, val path from data dict if it exists.
 
-        Returns:
-            (dict): A dictionary containing the training/validation/test dataset and category names.
+        Returns None if data format is not recognized.
         """
         try:
             if self.args.task == "classify":
@@ -589,19 +566,15 @@ class BaseTrainer:
                     self.args.data = data["yaml_file"]  # for validating 'yolo train data=url.zip' usage
         except Exception as e:
             raise RuntimeError(emojis(f"Dataset '{clean_url(self.args.data)}' error ❌ {e}")) from e
+        self.data = data
         if self.args.single_cls:
             LOGGER.info("Overriding class names with single class.")
-            data["names"] = {0: "item"}
-            data["nc"] = 1
-        return data
+            self.data["names"] = {0: "item"}
+            self.data["nc"] = 1
+        return data["train"], data.get("val") or data.get("test")
 
     def setup_model(self):
-        """
-        Load, create, or download model for any task.
-
-        Returns:
-            (dict): Optional checkpoint to resume training from.
-        """
+        """Load/create/download model for any task."""
         if isinstance(self.model, torch.nn.Module):  # if model is loaded beforehand. No setup needed
             return
 
@@ -631,10 +604,9 @@ class BaseTrainer:
 
     def validate(self):
         """
-        Run validation on test set using self.validator.
+        Runs validation on test set using self.validator.
 
-        Returns:
-            (tuple): A tuple containing metrics dictionary and fitness score.
+        The returned dict is expected to contain "fitness" key.
         """
         metrics = self.validator(self)
         fitness = metrics.pop("fitness", -self.loss.detach().cpu().numpy())  # use loss as fitness measure if not found
@@ -668,7 +640,7 @@ class BaseTrainer:
         return {"loss": loss_items} if loss_items is not None else ["loss"]
 
     def set_model_attributes(self):
-        """Set or update model parameters before training."""
+        """To set or update model parameters before training."""
         self.model.names = self.data["names"]
 
     def build_targets(self, preds, targets):
@@ -689,12 +661,12 @@ class BaseTrainer:
         pass
 
     def save_metrics(self, metrics):
-        """Save training metrics to a CSV file."""
+        """Saves training metrics to a CSV file."""
         keys, vals = list(metrics.keys()), list(metrics.values())
         n = len(metrics) + 2  # number of cols
         s = "" if self.csv.exists() else (("%s," * n % tuple(["epoch", "time"] + keys)).rstrip(",") + "\n")  # header
         t = time.time() - self.train_time_start
-        with open(self.csv, "a", encoding="utf-8") as f:
+        with open(self.csv, "a") as f:
             f.write(s + ("%.6g," * n % tuple([self.epoch + 1, t] + vals)).rstrip(",") + "\n")
 
     def plot_metrics(self):
@@ -707,7 +679,7 @@ class BaseTrainer:
         self.plots[path] = {"data": data, "timestamp": time.time()}
 
     def final_eval(self):
-        """Perform final evaluation and validation for object detection YOLO model."""
+        """Performs final evaluation and validation for object detection YOLO model."""
         ckpt = {}
         for f in self.last, self.best:
             if f.exists():
@@ -732,7 +704,7 @@ class BaseTrainer:
 
                 # Check that resume data YAML exists, otherwise strip to force re-download of dataset
                 ckpt_args = attempt_load_weights(last).args
-                if not isinstance(ckpt_args["data"], dict) and not Path(ckpt_args["data"]).exists():
+                if not Path(ckpt_args["data"]).exists():
                     ckpt_args["data"] = self.args.data
 
                 resume = True
@@ -791,7 +763,8 @@ class BaseTrainer:
 
     def build_optimizer(self, model, name="auto", lr=0.001, momentum=0.9, decay=1e-5, iterations=1e5):
         """
-        Construct an optimizer for the given model.
+        Constructs an optimizer for the given model, based on the specified optimizer name, learning rate, momentum,
+        weight decay, and number of iterations.
 
         Args:
             model (torch.nn.Module): The model for which to build an optimizer.
@@ -824,8 +797,7 @@ class BaseTrainer:
                 fullname = f"{module_name}.{param_name}" if module_name else param_name
                 if "bias" in fullname:  # bias (no decay)
                     g[2].append(param)
-                elif isinstance(module, bn) or "logit_scale" in fullname:  # weight (no decay)
-                    # ContrastiveHead and BNContrastiveHead included here with 'logit_scale'
+                elif isinstance(module, bn):  # weight (no decay)
                     g[1].append(param)
                 else:  # weight (with decay)
                     g[0].append(param)

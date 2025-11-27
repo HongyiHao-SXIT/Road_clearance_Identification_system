@@ -28,7 +28,7 @@ The VSCode compatible protocols for viewing images using the integrated terminal
 
     ```yaml
     "terminal.integrated.gpuAcceleration": "auto" # "auto" is default, can also use "on"
-    "terminal.integrated.enableImages": true
+    "terminal.integrated.enableImages": false
     ```
 
     <p align="center">

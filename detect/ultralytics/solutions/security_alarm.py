@@ -1,44 +1,36 @@
 # Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
 
-from ultralytics.solutions.solutions import BaseSolution, SolutionAnnotator, SolutionResults
+from ultralytics.solutions.solutions import BaseSolution
 from ultralytics.utils import LOGGER
-from ultralytics.utils.plotting import colors
+from ultralytics.utils.plotting import Annotator, colors
 
 
 class SecurityAlarm(BaseSolution):
     """
     A class to manage security alarm functionalities for real-time monitoring.
 
-    This class extends the BaseSolution class and provides features to monitor objects in a frame, send email
-    notifications when specific thresholds are exceeded for total detections, and annotate the output frame for
-    visualization.
+    This class extends the BaseSolution class and provides features to monitor
+    objects in a frame, send email notifications when specific thresholds are
+    exceeded for total detections, and annotate the output frame for visualization.
 
     Attributes:
-        email_sent (bool): Flag to track if an email has already been sent for the current event.
-        records (int): Threshold for the number of detected objects to trigger an alert.
-        server (smtplib.SMTP): SMTP server connection for sending email alerts.
-        to_email (str): Recipient's email address for alerts.
-        from_email (str): Sender's email address for alerts.
+       email_sent (bool): Flag to track if an email has already been sent for the current event.
+       records (int): Threshold for the number of detected objects to trigger an alert.
 
     Methods:
-        authenticate: Set up email server authentication for sending alerts.
-        send_email: Send an email notification with details and an image attachment.
-        process: Monitor the frame, process detections, and trigger alerts if thresholds are crossed.
+       authenticate: Sets up email server authentication for sending alerts.
+       send_email: Sends an email notification with details and an image attachment.
+       monitor: Monitors the frame, processes detections, and triggers alerts if thresholds are crossed.
 
     Examples:
         >>> security = SecurityAlarm()
         >>> security.authenticate("abc@gmail.com", "1111222233334444", "xyz@gmail.com")
         >>> frame = cv2.imread("frame.jpg")
-        >>> results = security.process(frame)
+        >>> processed_frame = security.monitor(frame)
     """
 
     def __init__(self, **kwargs):
-        """
-        Initialize the SecurityAlarm class with parameters for real-time object monitoring.
-
-        Args:
-            **kwargs (Any): Additional keyword arguments passed to the parent class.
-        """
+        """Initializes the SecurityAlarm class with parameters for real-time object monitoring."""
         super().__init__(**kwargs)
         self.email_sent = False
         self.records = self.CFG["records"]
@@ -48,14 +40,15 @@ class SecurityAlarm(BaseSolution):
 
     def authenticate(self, from_email, password, to_email):
         """
-        Authenticate the email server for sending alert notifications.
+        Authenticates the email server for sending alert notifications.
 
         Args:
             from_email (str): Sender's email address.
             password (str): Password for the sender's email account.
             to_email (str): Recipient's email address.
 
-        This method initializes a secure connection with the SMTP server and logs in using the provided credentials.
+        This method initializes a secure connection with the SMTP server
+        and logs in using the provided credentials.
 
         Examples:
             >>> alarm = SecurityAlarm()
@@ -71,14 +64,14 @@ class SecurityAlarm(BaseSolution):
 
     def send_email(self, im0, records=5):
         """
-        Send an email notification with an image attachment indicating the number of objects detected.
+        Sends an email notification with an image attachment indicating the number of objects detected.
 
         Args:
             im0 (numpy.ndarray): The input image or frame to be attached to the email.
             records (int): The number of detected objects to be included in the email message.
 
-        This method encodes the input image, composes the email message with details about the detection, and sends it
-        to the specified recipient.
+        This method encodes the input image, composes the email message with
+        details about the detection, and sends it to the specified recipient.
 
         Examples:
             >>> alarm = SecurityAlarm()
@@ -110,45 +103,42 @@ class SecurityAlarm(BaseSolution):
         # Send the email
         try:
             self.server.send_message(message)
-            LOGGER.info("Email sent successfully!")
+            LOGGER.info("✅ Email sent successfully!")
         except Exception as e:
-            LOGGER.error(f"Failed to send email: {e}")
+            print(f"❌ Failed to send email: {e}")
 
-    def process(self, im0):
+    def monitor(self, im0):
         """
-        Monitor the frame, process object detections, and trigger alerts if thresholds are exceeded.
+        Monitors the frame, processes object detections, and triggers alerts if thresholds are exceeded.
 
         Args:
             im0 (numpy.ndarray): The input image or frame to be processed and annotated.
 
-        Returns:
-            (SolutionResults): Contains processed image `plot_im`, 'total_tracks' (total number of tracked objects) and
-                'email_sent' (whether an email alert was triggered).
+        This method processes the input frame, extracts detections, annotates the frame
+        with bounding boxes, and sends an email notification if the number of detected objects
+        surpasses the specified threshold and an alert has not already been sent.
 
-        This method processes the input frame, extracts detections, annotates the frame with bounding boxes, and sends
-        an email notification if the number of detected objects surpasses the specified threshold and an alert has not
-        already been sent.
+        Returns:
+            (numpy.ndarray): The processed frame with annotations.
 
         Examples:
             >>> alarm = SecurityAlarm()
             >>> frame = cv2.imread("path/to/image.jpg")
-            >>> results = alarm.process(frame)
+            >>> processed_frame = alarm.monitor(frame)
         """
+        self.annotator = Annotator(im0, line_width=self.line_width)  # Initialize annotator
         self.extract_tracks(im0)  # Extract tracks
-        annotator = SolutionAnnotator(im0, line_width=self.line_width)  # Initialize annotator
 
-        # Iterate over bounding boxes and classes index
+        # Iterate over bounding boxes, track ids and classes index
         for box, cls in zip(self.boxes, self.clss):
             # Draw bounding box
-            annotator.box_label(box, label=self.names[cls], color=colors(cls, True))
+            self.annotator.box_label(box, label=self.names[cls], color=colors(cls, True))
 
         total_det = len(self.clss)
-        if total_det >= self.records and not self.email_sent:  # Only send email if not sent before
+        if total_det > self.records and not self.email_sent:  # Only send email If not sent before
             self.send_email(im0, total_det)
             self.email_sent = True
 
-        plot_im = annotator.result()
-        self.display_output(plot_im)  # Display output with base class function
+        self.display_output(im0)  # display output with base class function
 
-        # Return a SolutionResults
-        return SolutionResults(plot_im=plot_im, total_tracks=len(self.track_ids), email_sent=self.email_sent)
+        return im0  # return output image for more usage
