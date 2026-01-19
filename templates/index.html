@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <title>控制台 - TrashDet</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body{font-family:Arial; background:#f6f7fb; padding:24px;}
+    .card{max-width:720px; margin:0 auto; background:#fff; padding:22px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.08);}
+    a{color:#2563eb; text-decoration:none;}
+    .btn{display:inline-block; margin-top:12px; padding:8px 12px; border-radius:8px; background:#111827; color:#fff;}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>TrashDet 控制台</h2>
+    <p>欢迎：<b>{{ username }}</b>（role: {{ role }}）</p>
+
+    <p>下一步你可以把管理页面、统计页面都挂在这里。</p>
+
+    <a class="btn" href="/auth/logout">退出登录</a>
+  </div>
+</body>
+</html>
