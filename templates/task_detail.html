@@ -39,11 +39,11 @@
         <td>[{{ it.x1 }},{{ it.y1 }},{{ it.x2 }},{{ it.y2 }}]</td>
         <td>
           {% if it.is_valid is none %}
-            -
+          -
           {% elif it.is_valid %}
-            ✅
+          ✅
           {% else %}
-            ❌
+          ❌
           {% endif %}
         </td>
         <td><span class="badge">{{ it.handle_state }}</span></td>
@@ -58,7 +58,7 @@
 
             <select name="handle_state">
               {% for s in handle_states %}
-                <option value="{{ s }}" {% if it.handle_state==s %}selected{% endif %}>{{ s }}</option>
+              <option value="{{ s }}" {% if it.handle_state==s %}selected{% endif %}>{{ s }}</option>
               {% endfor %}
             </select>
 
@@ -66,7 +66,7 @@
         </td>
 
         <td>
-            <button class="btn2" type="submit">保存</button>
+          <button class="btn2" type="submit">保存</button>
           </form>
         </td>
       </tr>

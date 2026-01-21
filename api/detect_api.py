@@ -1,130 +1,95 @@
 import os
 import uuid
+from datetime import datetime
 from flask import Blueprint, current_app, request, jsonify
-
 from database.db import db
 from database.models import DetectTask, DetectItem
 from inference.yolo_detector import YOLODetector
 
 detect_bp = Blueprint("detect_bp", __name__)
 
-ALLOWED_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
-
-
 def _ensure_dirs():
-    os.makedirs(current_app.config["UPLOAD_DIR"], exist_ok=True)
-    os.makedirs(current_app.config["RESULT_DIR"], exist_ok=True)
-
-
-def _allowed_file(filename: str) -> bool:
-    ext = os.path.splitext(filename.lower())[1]
-    return ext in ALLOWED_EXTS
-
-
-def _bbox_area(x1, y1, x2, y2) -> int:
-    w = max(0, x2 - x1)
-    h = max(0, y2 - y1)
-    return w * h
-
+    upload_dir = current_app.config.get("UPLOAD_DIR", "static/uploads")
+    result_dir = current_app.config.get("RESULT_DIR", "static/results")
+    os.makedirs(upload_dir, exist_ok=True)
+    os.makedirs(result_dir, exist_ok=True)
 
 @detect_bp.route("/detect", methods=["POST"])
 def detect_upload():
-    """
-    POST /api/detect
-    form-data:
-      - image: file
-      - device_id: optional
-      - location: optional
-      - conf: optional (float)
-    """
     _ensure_dirs()
+    
+    f = request.files.get("image") or request.files.get("file")
+    if not f:
+        return jsonify({"ok": False, "message": "未收到文件"}), 400
 
-    if "image" not in request.files:
-        return jsonify({"ok": False, "error": "Missing file field 'image'"}), 400
-
-    f = request.files["image"]
-    if not f or not f.filename:
-        return jsonify({"ok": False, "error": "Empty filename"}), 400
-
-    if not _allowed_file(f.filename):
-        return jsonify({"ok": False, "error": f"Unsupported file type. Allowed: {sorted(ALLOWED_EXTS)}"}), 400
-
-    device_id = request.form.get("device_id")
-    location = request.form.get("location")
-    conf = request.form.get("conf", type=float)  # 可不传
-
-    # 生成唯一文件名
+    # 1. 处理文件名和路径
     ext = os.path.splitext(f.filename)[1].lower()
-    file_id = uuid.uuid4().hex
-    save_name = f"{file_id}{ext}"
+    save_name = f"{uuid.uuid4().hex}{ext}"
+    
+    # 原图路径 (uploads)
+    original_abs_path = os.path.join(current_app.config["UPLOAD_DIR"], save_name)
+    source_rel_path = f"static/uploads/{save_name}"
+    
+    # 结果图路径 (results)
+    result_abs_path = os.path.join(current_app.config["RESULT_DIR"], save_name) # 修正拼写 jon -> join
+    result_rel_path = f"static/results/{save_name}" # 修正缺失的 /
 
-    # 物理路径
-    abs_upload_path = os.path.join(current_app.config["UPLOAD_DIR"], save_name)
+    # 保存上传的原图
+    f.save(original_abs_path)
 
-    # 数据库里建议存“相对路径”（方便迁移）
-    rel_upload_path = os.path.join("static", "uploads", save_name).replace("\\", "/")
-
-    # 保存文件
-    f.save(abs_upload_path)
-
-    # 先建 task（PENDING）
+    # 2. 创建任务记录
     task = DetectTask(
-        source_type="image",
-        source_path=rel_upload_path,
-        result_path=None,
-        device_id=device_id,
-        location=location,
+        source_type="image", 
+        source_path=source_rel_path,
+        result_path=result_rel_path, # 修正重复字段和赋值逻辑
         status="PENDING",
-        error_msg=None,
+        created_at=datetime.now()
     )
     db.session.add(task)
-    db.session.flush()  # 获取 task.id（不提交也能拿到）
-
-    # 调检测器（有 best.pt 就 real，没有就 mock）
-    # 这里不强依赖模型存在
-    model_path = os.path.join(os.path.dirname(current_app.root_path), "Detection_system", "models", "best.pt")
-    detector = YOLODetector(model_path=model_path if os.path.exists(model_path) else None)
+    db.session.commit()
 
     try:
-        detections = detector.detect(abs_upload_path, conf=conf if conf else 0.25)
+        # 3. 初始化检测器
+        project_root = os.path.dirname(current_app.root_path)
+        model_path = os.path.join(project_root, "best.pt")
+        detector = YOLODetector(model_path=model_path if os.path.exists(model_path) else None)
 
-        items = []
+        # 执行推理并保存带框图片
+        detections = detector.detect(original_abs_path, save_result=True, result_path=result_abs_path)
+        
+        result_list = []
         for d in detections:
-            x1, y1, x2, y2 = d["bbox"]
             item = DetectItem(
                 task_id=task.id,
                 label=d["label"],
                 confidence=float(d["confidence"]),
-                x1=int(x1),
-                y1=int(y1),
-                x2=int(x2),
-                y2=int(y2),
-                area=_bbox_area(int(x1), int(y1), int(x2), int(y2)),
-                is_valid=None,
-                handle_state="NEW",
-                note=None,
+                x1=int(d["bbox"][0]), y1=int(d["bbox"][1]), 
+                x2=int(d["bbox"][2]), y2=int(d["bbox"][3]),
+                area=int((d["bbox"][2]-d["bbox"][0])*(d["bbox"][3]-d["bbox"][1])),
+                handle_state='NEW'
             )
-            items.append(item)
-
-        db.session.add_all(items)
-
+            db.session.add(item)
+            
+            # 为了前端显示列表，构造数据
+            result_list.append({
+                "class_name": d["label"],
+                "confidence": f"{d['confidence']*100:.2f}%",
+                "bbox": [int(x1) for x1 in d["bbox"]]
+            })
+        
         task.status = "DONE"
         db.session.commit()
 
+        # 4. 返回结果
         return jsonify({
             "ok": True,
-            "task": task.to_dict(with_items=True),
+            "status": "success",
+            "result": result_list,
+            "annotated_image_path": result_rel_path,
+            "task": task.to_dict() if hasattr(task, 'to_dict') else {"id": task.id}
         })
 
     except Exception as e:
         db.session.rollback()
-        task.status = "FAILED"
-        task.error_msg = str(e)[:500]
-        db.session.add(task)
-        db.session.commit()
-
-        return jsonify({
-            "ok": False,
-            "error": str(e),
-            "task_id": task.id,
-        }), 500
+        print(f"!!! 后端错误详情: {str(e)}")
+        return jsonify({"ok": False, "message": str(e)}), 500

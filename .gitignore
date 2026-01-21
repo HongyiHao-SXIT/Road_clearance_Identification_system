@@ -1,10 +1,19 @@
-.venv/
+static/uploads/*
+!static/uploads/.gitkeep
 
-*.pyc
+static/results/*
+!static/results/.gitkeep
+
+*.db
+
+.venv/
+venv/
+env/
 __pycache__/
+*.pyc
+.python-version
 
 instance/
-
 .pytest_cache/
 .coverage
 htmlcov/
@@ -12,3 +21,10 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+runs/
+test/
+
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

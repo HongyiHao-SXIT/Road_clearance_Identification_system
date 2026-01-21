@@ -1,24 +1,51 @@
 <!doctype html>
 <html lang="zh">
 <head>
-  <meta charset="utf-8">
-  <title>控制台 - TrashDet</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    body{font-family:Arial; background:#f6f7fb; padding:24px;}
-    .card{max-width:720px; margin:0 auto; background:#fff; padding:22px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.08);}
-    a{color:#2563eb; text-decoration:none;}
-    .btn{display:inline-block; margin-top:12px; padding:8px 12px; border-radius:8px; background:#111827; color:#fff;}
-  </style>
+    <meta charset="utf-8">
+    <title>TrashDet 控制台</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 </head>
 <body>
-  <div class="card">
-    <h2>TrashDet 控制台</h2>
-    <p>欢迎：<b>{{ username }}</b>（role: {{ role }}）</p>
+    <div class="card">
+        <header style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>TrashDet 控制台</h2>
+            <div class="user-info" style="text-align: right;">
+                <p style="margin:0; font-size:14px;">用户: <b>{{ username }}</b></p>
+                <a href="/auth/logout" style="font-size:12px; color: var(--error);">退出登录</a>
+            </div>
+        </header>
 
-    <p>下一步你可以把管理页面、统计页面都挂在这里。</p>
+        <div class="action-bar">
+            <a class="btn btn-primary" href="stats">📈 查看数据统计报告</a>
+        </div>
 
-    <a class="btn" href="/auth/logout">退出登录</a>
-  </div>
+        <div class="garbage-det-module">
+            <div class="upload-area" id="uploadArea">
+                <div style="font-size: 40px;">☁️</div>
+                <p style="font-weight: 600; margin:10px 0;">点击或拖拽图片至此处识别</p>
+                <p style="font-size:12px; color:var(--text-muted);">支持 PNG, JPG, JPEG (最大 16MB)</p>
+                <input type="file" id="fileInput" accept="image/*" style="display:none;">
+            </div>
+
+            <div class="preview-container">
+                <div class="preview-box">
+                    <p>📸 原图预览</p>
+                    <img id="originalPreview" class="preview-img" style="display: none;">
+                </div>
+                <div class="preview-box">
+                    <p>🎯 识别结果图</p>
+                    <img id="annotatedPreview" class="preview-img" style="display: none;">
+                </div>
+            </div>
+
+            <div class="result-area" id="resultArea" style="display:none;">
+                <h4 style="margin:0 0 15px;">识别详情清单</h4>
+                <div id="resultContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

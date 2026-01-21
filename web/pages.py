@@ -7,7 +7,6 @@ from database.models import DetectTask, DetectItem, OpsLog
 
 web_bp = Blueprint("web_bp", __name__)
 
-# 可用状态（页面下拉框用）
 HANDLE_STATES = ["NEW", "CONFIRMED", "CLEANED", "IGNORED"]
 
 
@@ -15,6 +14,11 @@ HANDLE_STATES = ["NEW", "CONFIRMED", "CLEANED", "IGNORED"]
 @login_required
 def home():
     return redirect(url_for("web_bp.tasks"))
+
+@web_bp.route("/stats")
+@login_required
+def stats_page():
+    return render_template("stats.html")
 
 
 @web_bp.route("/tasks")
@@ -67,7 +71,6 @@ def update_item(item_id: int):
     """
     item = DetectItem.query.get_or_404(item_id)
 
-    # 来自表单
     handle_state = request.form.get("handle_state", "").strip()
     is_valid_raw = request.form.get("is_valid", "").strip()  # "", "1", "0"
     note = (request.form.get("note") or "").strip()
@@ -76,27 +79,23 @@ def update_item(item_id: int):
         flash("无效的 handle_state")
         return redirect(url_for("web_bp.task_detail", task_id=item.task_id))
 
-    # 解析 is_valid
     is_valid = None
     if is_valid_raw == "1":
         is_valid = True
     elif is_valid_raw == "0":
         is_valid = False
 
-    # 记录变更前状态（用于日志 detail）
     before = {
         "handle_state": item.handle_state,
         "is_valid": item.is_valid,
         "note": item.note,
     }
 
-    # 应用更新
     if handle_state:
         item.handle_state = handle_state
     item.is_valid = is_valid
     item.note = note
 
-    # 写操作日志
     after = {
         "handle_state": item.handle_state,
         "is_valid": item.is_valid,

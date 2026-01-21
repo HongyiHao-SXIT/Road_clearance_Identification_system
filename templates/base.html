@@ -1,26 +1,114 @@
 <!doctype html>
 <html lang="zh">
+
 <head>
   <meta charset="utf-8">
   <title>{% block title %}TrashDet 管理{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body{font-family:Arial; background:#f6f7fb; margin:0;}
-    .topbar{background:#111827; color:#fff; padding:12px 18px; display:flex; justify-content:space-between; align-items:center;}
-    .container{max-width:1100px; margin:18px auto; padding:0 14px;}
-    .card{background:#fff; border-radius:12px; padding:16px; box-shadow:0 8px 24px rgba(0,0,0,.08); margin-bottom:14px;}
-    table{width:100%; border-collapse:collapse;}
-    th,td{padding:10px; border-bottom:1px solid #eee; text-align:left; font-size:14px;}
-    th{background:#fafafa;}
-    .badge{display:inline-block; padding:3px 8px; border-radius:999px; font-size:12px; background:#eef2ff;}
-    .btn{display:inline-block; padding:7px 10px; border-radius:8px; background:#111827; color:#fff; text-decoration:none; border:none; cursor:pointer;}
-    .btn2{display:inline-block; padding:7px 10px; border-radius:8px; background:#2563eb; color:#fff; text-decoration:none; border:none; cursor:pointer;}
-    input,select{padding:7px; border:1px solid #ddd; border-radius:8px;}
-    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
-    .msg{color:#b91c1c; font-size:14px; margin:8px 0;}
-    a{color:#2563eb; text-decoration:none;}
+    body {
+      font-family: Arial;
+      background: #f6f7fb;
+      margin: 0;
+    }
+
+    .topbar {
+      background: #111827;
+      color: #fff;
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 18px auto;
+      padding: 0 14px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .08);
+      margin-bottom: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    th {
+      background: #fafafa;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: #eef2ff;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 7px 10px;
+      border-radius: 8px;
+      background: #111827;
+      color: #fff;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn2 {
+      display: inline-block;
+      padding: 7px 10px;
+      border-radius: 8px;
+      background: #2563eb;
+      color: #fff;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+    }
+
+    input,
+    select {
+      padding: 7px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .msg {
+      color: #b91c1c;
+      font-size: 14px;
+      margin: 8px 0;
+    }
+
+    a {
+      color: #2563eb;
+      text-decoration: none;
+    }
   </style>
 </head>
+
 <body>
   <div class="topbar">
     <div><b>TrashDet 管理后台</b></div>
@@ -32,12 +120,13 @@
 
   <div class="container">
     {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <div class="card msg">{{ messages[0] }}</div>
-      {% endif %}
+    {% if messages %}
+    <div class="card msg">{{ messages[0] }}</div>
+    {% endif %}
     {% endwith %}
 
     {% block content %}{% endblock %}
   </div>
 </body>
+
 </html>

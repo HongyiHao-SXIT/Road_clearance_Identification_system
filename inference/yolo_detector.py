@@ -1,5 +1,6 @@
 import os
 import random
+import cv2
 from datetime import datetime
 
 try:
@@ -29,57 +30,28 @@ YOLO_CLASS_NAMES = [
 
 
 class YOLODetector:
-    """
-    支持两种模式：
-    1. real  -> 使用 best.pt
-    2. mock  -> 无模型，随机生成检测结果
-    """
     def __init__(self, model_path=None):
-        self.model_path = model_path
-        self.mode = "mock"
+        #调用模型
+        self.model = YOLO(model_path if model_path else "best.pt")
 
-        if model_path and os.path.exists(model_path) and YOLO is not None:
-            self.mode = "real"
-            self.model = YOLO(model_path)
-            print("[YOLO] Real model loaded")
-        else:
-            print("[YOLO] Using MOCK detector")
+    def detect(self, img_path, save_result=False, result_path=None):
+        # 1. 执行推理
+        results = self.model(img_path)
+        result = results[0]
 
-    def detect(self, image_path, conf=0.25):
-        if self.mode == "real":
-            return self._detect_real(image_path, conf)
-        return self._detect_mock(image_path)
+        # 2. 如果要求保存结果图
+        if save_result and result_path:
+            annotated_frame = result.plot()
+            cv2.imwrite(result_path, annotated_frame)
 
-    def _detect_real(self, image_path, conf):
-        results = self.model(image_path, conf=conf)
+        # 3. 解析结果并返回给后端 API
         detections = []
-
-        for r in results:
-            for box in r.boxes:
-                x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
-                cls_id = int(box.cls[0])
-                detections.append({
-                    "label": self.model.names[cls_id],
-                    "confidence": float(box.conf[0]),
-                    "bbox": [x1, y1, x2, y2],
-                })
-        return detections
-
-    def _detect_mock(self, image_path):
-        labels = ["plastic", "paper", "can", "cigarette", "bottle"]
-        detections = []
-
-        for _ in range(random.randint(1, 4)):
-            x1 = random.randint(50, 200)
-            y1 = random.randint(50, 200)
-            x2 = x1 + random.randint(30, 120)
-            y2 = y1 + random.randint(30, 120)
-
+        for box in result.boxes:
+            coords = box.xyxy[0].tolist()
             detections.append({
-                "label": random.choice(labels),
-                "confidence": round(random.uniform(0.6, 0.95), 3),
-                "bbox": [x1, y1, x2, y2],
-                "mock": True,
-                "ts": datetime.utcnow().isoformat()
+                "label": result.names[int(box.cls[0])],
+                "confidence": float(box.conf[0]),
+                "bbox": coords
             })
+        
         return detections

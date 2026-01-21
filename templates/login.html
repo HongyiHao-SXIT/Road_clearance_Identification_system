@@ -1,28 +1,21 @@
 <!doctype html>
 <html lang="zh">
+
 <head>
   <meta charset="utf-8">
   <title>登录 - TrashDet</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    body{font-family:Arial; background:#f6f7fb;}
-    .card{max-width:360px; margin:80px auto; background:#fff; padding:22px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.08);}
-    input{width:100%; padding:10px; margin:8px 0; border:1px solid #ddd; border-radius:8px;}
-    button{width:100%; padding:10px; border:none; border-radius:8px; cursor:pointer;}
-    .btn{background:#111827; color:#fff;}
-    .row{display:flex; justify-content:space-between; margin-top:12px;}
-    .a{font-size:14px; text-decoration:none; color:#2563eb;}
-    .msg{color:#b91c1c; font-size:14px; margin:8px 0;}
-  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
+
 <body>
   <div class="card">
     <h2>TrashDet 登录</h2>
 
     {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <div class="msg">{{ messages[0] }}</div>
-      {% endif %}
+    {% if messages %}
+    <div class="msg">{{ messages[0] }}</div>
+    {% endif %}
     {% endwith %}
 
     <form method="post" action="/auth/login">
@@ -37,5 +30,5 @@
     </div>
   </div>
 </body>
+
 </html>
-    
