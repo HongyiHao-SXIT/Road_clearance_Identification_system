@@ -13,10 +13,14 @@ body {
     background: white;
     padding: 40px;
     border-radius: 20px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
 }
 
-h2 { color: #1e293b; text-align: center; margin-bottom: 30px; }
+h2 {
+    color: #1e293b;
+    text-align: center;
+    margin-bottom: 30px;
+}
 
 input {
     width: 100%;
@@ -46,7 +50,9 @@ input:focus {
     margin-top: 10px;
 }
 
-.btn:hover { background: #334155; }
+.btn:hover {
+    background: #334155;
+}
 
 .msg {
     background: #fef2f2;
@@ -58,5 +64,14 @@ input:focus {
     border-left: 4px solid #ef4444;
 }
 
-.row { display: flex; justify-content: space-between; margin-top: 20px; font-size: 14px; }
-.a { color: #4f46e5; text-decoration: none; }
+.row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+    font-size: 14px;
+}
+
+.a {
+    color: #4f46e5;
+    text-decoration: none;
+}

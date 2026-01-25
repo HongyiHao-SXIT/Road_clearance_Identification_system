@@ -1,7 +1,6 @@
 from flask import Flask
 from config import Config
 from database.db import db
-
 from api.auth_api import auth_bp, login_manager
 from api.main import main_bp
 from api.detect_api import detect_bp
@@ -35,6 +34,5 @@ def create_app():
 if __name__ == "__main__":
     app = create_app()
     with app.app_context():
-        from database import models
         db.create_all()
     app.run(host="0.0.0.0", port=5000, debug=True)

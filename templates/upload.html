@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}手动识别终端{% endblock %}
+
+{% block content %}
+{# 注意：Jinja2 继承中不需要再次写 <html>, <head>, <body> 标签 #}
+<div class="card">
+    <header style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>TrashDet Upload</h2>
+        <div class="user-info" style="text-align: right;">
+            <p style="margin:0; font-size:14px;">用户: <b>{{ username }}</b></p>
+            <a href="/auth/logout" style="font-size:12px; color: var(--error);">退出登录</a>
+        </div>
+    </header>
+
+    <div class="action-bar">
+        <a class="btn btn-primary" href="stats">📈 查看数据统计报告</a>
+    </div>
+
+    <div class="garbage-det-module">
+        <div class="upload-area" id="uploadArea">
+            <div style="font-size: 40px;">☁️</div>
+            <p style="font-weight: 600; margin:10px 0;">点击或拖拽图片至此处识别</p>
+            <p style="font-size:12px; color:var(--text-muted);">支持 PNG, JPG, JPEG (最大 16MB)</p>
+            <input type="file" id="fileInput" accept="image/*" style="display:none;">
+        </div>
+
+        <div class="preview-container">
+            <div class="preview-box">
+                <p>📸 原图预览</p>
+                <img id="originalPreview" class="preview-img" style="display: none;">
+            </div>
+            <div class="preview-box">
+                <p>🎯 识别结果图</p>
+                <img id="annotatedPreview" class="preview-img" style="display: none;">
+            </div>
+        </div>
+
+        <div class="result-area" id="resultArea" style="display:none;">
+            <h4 style="margin:0 0 15px;">识别详情清单</h4>
+            <div id="resultContent"></div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+{% endblock %}

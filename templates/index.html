@@ -1,51 +1,116 @@
-<!doctype html>
-<html lang="zh">
-<head>
-    <meta charset="utf-8">
-    <title>TrashDet 控制台</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-</head>
-<body>
-    <div class="card">
-        <header style="display: flex; justify-content: space-between; align-items: center;">
-            <h2>TrashDet 控制台</h2>
-            <div class="user-info" style="text-align: right;">
-                <p style="margin:0; font-size:14px;">用户: <b>{{ username }}</b></p>
-                <a href="/auth/logout" style="font-size:12px; color: var(--error);">退出登录</a>
-            </div>
-        </header>
+{% extends "base.html" %}
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 
-        <div class="action-bar">
-            <a class="btn btn-primary" href="stats">📈 查看数据统计报告</a>
-        </div>
-
-        <div class="garbage-det-module">
-            <div class="upload-area" id="uploadArea">
-                <div style="font-size: 40px;">☁️</div>
-                <p style="font-weight: 600; margin:10px 0;">点击或拖拽图片至此处识别</p>
-                <p style="font-size:12px; color:var(--text-muted);">支持 PNG, JPG, JPEG (最大 16MB)</p>
-                <input type="file" id="fileInput" accept="image/*" style="display:none;">
-            </div>
-
-            <div class="preview-container">
-                <div class="preview-box">
-                    <p>📸 原图预览</p>
-                    <img id="originalPreview" class="preview-img" style="display: none;">
-                </div>
-                <div class="preview-box">
-                    <p>🎯 识别结果图</p>
-                    <img id="annotatedPreview" class="preview-img" style="display: none;">
-                </div>
-            </div>
-
-            <div class="result-area" id="resultArea" style="display:none;">
-                <h4 style="margin:0 0 15px;">识别详情清单</h4>
-                <div id="resultContent"></div>
-            </div>
+<div class="dashboard-container">
+    <div class="header-section">
+        <h2>🌍 TrashDet 垃圾检测指挥中心</h2>
+        <div class="action-btns">
+            <a href="/upload" class="btn btn-primary">📸 手动上传终端</a>
+            <a href="/result" class="btn">📋 检测结果列表</a>
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
-</body>
-</html>
+    <div class="map-card">
+        <div id="map" style="height: 450px; border-radius: 15px;"></div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="chart-box">
+            <h3>📊 垃圾种类比例</h3>
+            <div id="pieChart" style="height: 300px;"></div>
+        </div>
+        <div class="chart-box">
+            <h3>📈 近期检测趋势</h3>
+            <div id="lineChart" style="height: 300px;"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .dashboard-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .header-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+    }
+
+    .map-card {
+        background: white;
+        padding: 15px;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        margin-bottom: 25px;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .chart-box {
+        background: white;
+        padding: 20px;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    }
+
+    h3 {
+        margin-bottom: 15px;
+        font-size: 16px;
+        color: #475569;
+    }
+</style>
+
+<script>
+    // 1. 初始化地图 (默认定位)
+    const map = L.map('map').setView([31.2304, 121.4737], 11); // 以示例坐标为例
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    // 2. 加载统计数据并绘制图表与地图点
+    fetch('/api/stats/summary')
+        .then(res => res.json())
+        .then(data => {
+            if (!data.ok) return;
+
+            // --- 绘制饼图 ---
+            const pieChart = echarts.init(document.getElementById('pieChart'));
+            pieChart.setOption({
+                tooltip: { trigger: 'item' },
+                series: [{
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    data: data.pie_data
+                }]
+            });
+
+            // --- 绘制折线图 ---
+            const lineChart = echarts.init(document.getElementById('lineChart'));
+            lineChart.setOption({
+                xAxis: { type: 'category', data: data.line_data.labels },
+                yAxis: { type: 'value' },
+                series: [{ data: data.line_data.values, type: 'line', smooth: true }]
+            });
+
+            // --- 3. 渲染动态地图点 ---
+            if (data.locations && data.locations.length > 0) {
+                data.locations.forEach(loc => {
+                    L.circleMarker([loc.lat, loc.lng], { color: '#ef4444', radius: 8 })
+                        .addTo(map)
+                        .bindPopup(loc.label);
+                });
+                // 自动调整视野到第一个点
+                map.setView([data.locations[0].lat, data.locations[0].lng], 12);
+            }
+        });
+</script>
+{% endblock %}

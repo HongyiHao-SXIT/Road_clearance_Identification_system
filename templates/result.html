@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}检测结果列表{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h3>检测结果列表</h3>
+
+  <form method="get" class="row" style="margin:10px 0;">
+    <label>状态：</label>
+    <select name="status">
+      <option value="" {% if not status %}selected{% endif %}>全部</option>
+      <option value="PENDING" {% if status=="PENDING" %}selected{% endif %}>PENDING</option>
+      <option value="DONE" {% if status=="DONE" %}selected{% endif %}>DONE</option>
+      <option value="FAILED" {% if status=="FAILED" %}selected{% endif %}>FAILED</option>
+    </select>
+
+    <button class="btn2" type="submit">筛选</button>
+  </form>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>状态</th>
+        <th>来源</th>
+        <th>设备</th>
+        <th>地点</th>
+        <th>时间</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in tasks %}
+      <tr>
+        <td>{{ t.id }}</td>
+        <td><span class="badge">{{ t.status }}</span></td>
+        <td>{{ t.source_path }}</td>
+        <td>{{ t.device_id or "-" }}</td>
+        <td>{{ t.location or "-" }}</td>
+        <td>{{ t.created_at }}</td>
+        <td>
+          <a class="btn" href="/result/{{ t.id }}">查看 & 管理</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="row" style="justify-content:space-between; margin-top:12px;">
+    <div>第 {{ pagination.page }} / {{ pagination.pages }} 页</div>
+    <div class="row">
+      {% if pagination.has_prev %}
+      <a class="btn2" href="/result?page={{ pagination.prev_num }}&status={{ status }}">上一页</a>
+      {% endif %}
+      {% if pagination.has_next %}
+      <a class="btn2" href="/result?page={{ pagination.next_num }}&status={{ status }}">下一页</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

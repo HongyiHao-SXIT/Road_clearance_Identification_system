@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="utf-8">
-  <title>{% block title %}TrashDet 管理{% endblock %}</title>
+  <title>{% block title %}TrashDet {% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body {
@@ -113,8 +113,10 @@
   <div class="topbar">
     <div><b>TrashDet 管理后台</b></div>
     <div>
-      <a style="color:#fff; margin-right:12px;" href="/tasks">任务列表</a>
-      <a style="color:#fff;" href="/auth/logout">退出</a>
+      <a style="color:#fff; margin-right:12px;" href="/">首页</a>
+      <a style="color:#fff; margin-right:12px;" href="/upload">手动识别终端</a>
+      <a style="color:#fff; margin-right:12px;" href="/result">检测结果列表</a>
+      <a style="color:#fff;" href="/auth/logout">退出登录</a>
     </div>
   </div>
 
