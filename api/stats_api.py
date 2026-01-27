@@ -16,9 +16,15 @@ def get_summary():
 
         locations = []
         for t in tasks:
+
+            types = list(set([item.label for item in t.items]))
+            types_str = ", ".join(types) if types else "未识别"
+
             locations.append({
+                "id": t.id,
                 "lat": t.latitude,
                 "lng": t.longitude,
+                "trash_types": types_str,
                 "label": f"任务 #{t.id}: 发现 {len(t.items)} 处垃圾"
             })
 

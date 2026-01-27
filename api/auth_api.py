@@ -6,16 +6,14 @@ from database.models import User
 auth_bp = Blueprint("auth_bp", __name__)
 
 login_manager = LoginManager()
-login_manager.login_view = "auth_bp.login_page"  # 未登录时跳转到登录页
+login_manager.login_view = "auth_bp.login_page"
 
 
 class LoginUser(UserMixin):
-    """
-    Flask-Login 需要的包装类（把 ORM User 包一层）
-    """
+    
     def __init__(self, user: User):
         self._user = user
-        self.id = str(user.id)  # Flask-Login 要求 id 为 str
+        self.id = str(user.id)
 
     @property
     def username(self):
@@ -40,6 +38,7 @@ def register_page():
     username = (request.form.get("username") or "").strip()
     password = request.form.get("password") or ""
     password2 = request.form.get("password2") or ""
+    security_code = request.form.get("security_code") or ""
 
     if not username or not password:
         flash("用户名和密码不能为空")
@@ -54,8 +53,12 @@ def register_page():
     if User.query.filter_by(username=username).first():
         flash("用户名已存在")
         return redirect(url_for("auth_bp.register_page"))
+    
+    if not security_code:
+        flash("请设置安全码")
+        return redirect(url_for("auth_bp.register_page"))
 
-    u = User(username=username, role="user")
+    u = User(username=username, role="user", security_code=security_code)
     u.set_password(password)
     db.session.add(u)
     db.session.commit()
@@ -80,6 +83,25 @@ def login_page():
     login_user(LoginUser(u), remember=True)
     return redirect(url_for("main_bp.index"))
 
+@auth_bp.route("/forget", methods=["GET", "POST"])
+def forget():
+    if request.method == "GET":
+        return render_template("forget.html")
+    
+    username = (request.form.get("username") or "").strip()
+    newpassword = (request.form.get("newpassword") or "").strip()
+    security_code = (request.form.get("security_code") or "").strip()
+
+    u = User.query.filter_by(username=username).first()
+    if not u or not u.check_securitycode(security_code):
+        flash("用户名或安全码错误")
+        return redirect(url_for("auth_bp.forget")) 
+    
+    u.set_password(newpassword)
+    db.session.commit()
+    
+    flash("修改成功")
+    return redirect(url_for("auth_bp.login_page"))
 
 @auth_bp.route("/logout", methods=["GET"])
 @login_required

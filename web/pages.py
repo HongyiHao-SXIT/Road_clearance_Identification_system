@@ -24,9 +24,18 @@ def stats_page():
 
 @web_bp.route("/result")
 @login_required
-def tasks():
+def result():
     page = int(request.args.get("page", 1))
     pagination = DetectTask.query.order_by(DetectTask.id.desc()).paginate(
         page=page, per_page=10, error_out=False
     )
     return render_template("result.html", tasks=pagination.items, pagination=pagination)
+
+@web_bp.route("/task")
+@login_required
+def task():
+    task_id = request.args.get("task_id")
+
+@web_bp.route("/forget")
+def forget():
+    return render_template("forget.html")

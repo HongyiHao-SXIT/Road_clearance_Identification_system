@@ -9,6 +9,7 @@ class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
+    securitycode_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), default='user')
 
     def set_password(self, password):
@@ -16,6 +17,12 @@ class User(db.Model, UserMixin):
 
     def check_password(self, password):
         return security.check_password_hash(self.password_hash, password)
+    
+    def set_securitycode(self, securitycode):
+        self.securitycode_hash = security.generate_password_hash(securitycode)
+    
+    def check_securitycode(self, securitycode):
+        return security.check_password_hash(self.securitycode_hash, securitycode)
 
 class DetectTask(db.Model):
     __tablename__ = 'detect_task'

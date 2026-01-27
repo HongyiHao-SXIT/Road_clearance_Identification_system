@@ -31,7 +31,6 @@ YOLO_CLASS_NAMES = [
 
 class YOLODetector:
     def __init__(self, model_path=None):
-        #调用模型
         self.model = YOLO(model_path if model_path else "best.pt")
 
     def detect(self, img_path, save_result=False, result_path=None):

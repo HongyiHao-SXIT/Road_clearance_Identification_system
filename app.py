@@ -25,10 +25,6 @@ def create_app():
     app.register_blueprint(stats_bp, url_prefix="/api/stats")
 
 
-    @app.route("/health")
-    def health():
-        return {"ok": True}
-
     return app
 
 if __name__ == "__main__":

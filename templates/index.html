@@ -59,7 +59,7 @@
 
     .chart-box {
         background: white;
-        padding: 20px;
+        padding: 20px;  
         border-radius: 20px;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
     }
@@ -72,45 +72,70 @@
 </style>
 
 <script>
-    // 1. 初始化地图 (默认定位)
-    const map = L.map('map').setView([31.2304, 121.4737], 11); // 以示例坐标为例
+    // 1. 初始化地图
+    const map = L.map('map').setView([30.0, 110.0], 5);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-    // 2. 加载统计数据并绘制图表与地图点
-    fetch('/api/stats/summary')
-        .then(res => res.json())
-        .then(data => {
-            if (!data.ok) return;
+    function loadDashboardData() {
+        fetch('/api/stats/summary')
+            .then(res => res.json())
+            .then(data => {
+                if (!data.ok) return;
 
-            // --- 绘制饼图 ---
-            const pieChart = echarts.init(document.getElementById('pieChart'));
-            pieChart.setOption({
-                tooltip: { trigger: 'item' },
-                series: [{
-                    type: 'pie',
-                    radius: ['40%', '70%'],
-                    data: data.pie_data
-                }]
-            });
-
-            // --- 绘制折线图 ---
-            const lineChart = echarts.init(document.getElementById('lineChart'));
-            lineChart.setOption({
-                xAxis: { type: 'category', data: data.line_data.labels },
-                yAxis: { type: 'value' },
-                series: [{ data: data.line_data.values, type: 'line', smooth: true }]
-            });
-
-            // --- 3. 渲染动态地图点 ---
-            if (data.locations && data.locations.length > 0) {
-                data.locations.forEach(loc => {
-                    L.circleMarker([loc.lat, loc.lng], { color: '#ef4444', radius: 8 })
-                        .addTo(map)
-                        .bindPopup(loc.label);
+                const pieChart = echarts.init(document.getElementById('pieChart'));
+                pieChart.setOption({
+                    tooltip: { trigger: 'item' },
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        data: data.pie_data
+                    }]
                 });
-                // 自动调整视野到第一个点
-                map.setView([data.locations[0].lat, data.locations[0].lng], 12);
-            }
-        });
+
+                const lineChart = echarts.init(document.getElementById('lineChart'));
+                lineChart.setOption({
+                    xAxis: { type: 'category', data: data.line_data.labels },
+                    yAxis: { type: 'value' },
+                    series: [{ data: data.line_data.values, type: 'line', smooth: true }]
+                });
+
+                if (data.locations && data.locations.length > 0) {
+                    data.locations.forEach(loc => {
+                        const marker = L.marker([loc.lat, loc.lng]).addTo(map);
+
+                        const cardHtml = `
+                            <div class="map-card" style="width: 200px; padding: 5px;">
+                                <h4 style="margin: 0 0 8px; color: #2563eb; border-bottom: 1px solid #eee;">任务 #${loc.id}</h4>
+                                <p style="font-size: 13px; margin: 4px 0;">
+                                    <b>识别结果:</b> <span style="color: #ef4444;">${loc.trash_types || '未检测到'}</span>
+                                </p>
+                                <hr style="border: 0; border-top: 1px solid #eee; margin: 8px 0;">
+                                <p style="font-size: 11px; color: #666;">坐标: ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}</p>
+                            </div>
+                        `;
+
+                        // 绑定 Popup 并设置偏移量防止遮挡点
+                        marker.bindPopup(cardHtml, {
+                            closeButton: false,
+                            offset: L.point(0, -15)
+                        });
+
+                        // 鼠标悬停显示，移开隐藏
+                        marker.on('mouseover', function (e) {
+                            this.openPopup();
+                        });
+                        marker.on('mouseout', function (e) {
+                            this.closePopup();
+                        });
+                    });
+
+                    // 自动缩放到第一个点
+                    map.setView([data.locations[0].lat, data.locations[0].lng], 10);
+                }
+            })
+            .catch(err => console.error("加载数据失败:", err));
+    }
+
+    loadDashboardData();
 </script>
 {% endblock %}
