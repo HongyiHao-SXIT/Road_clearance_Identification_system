@@ -9,7 +9,7 @@ class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    securitycode_hash = db.Column(db.String(255), nullable=False)
+    security_code = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), default='user')
 
     def set_password(self, password):
@@ -18,11 +18,11 @@ class User(db.Model, UserMixin):
     def check_password(self, password):
         return security.check_password_hash(self.password_hash, password)
     
-    def set_securitycode(self, securitycode):
-        self.securitycode_hash = security.generate_password_hash(securitycode)
-    
-    def check_securitycode(self, securitycode):
-        return security.check_password_hash(self.securitycode_hash, securitycode)
+    def set_securitycode(self, security_code):
+        self.security_code = security.generate_password_hash(security_code)
+
+    def check_securitycode(self, security_code):
+        return security.check_password_hash(self.security_code, security_code)
 
 class DetectTask(db.Model):
     __tablename__ = 'detect_task'
@@ -62,4 +62,20 @@ class OpsLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer)
     action = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+class Robot(db.Model):
+    __tablename__ = 'robot'
+    id = db.Column(db.Integer, primary_key=True)
+    device_id = db.Column(db.String(50), unique=True, nullable=False)
+    name = db.Column(db.String(100))
+    status = db.Column(db.String(20), default='OFFLINE')
+    ip_address = db.Column(db.String(50))
+    current_lat = db.Column(db.Float, nullable=True)
+    current_lng = db.Column(db.Float, nullable=True)
+    last_heartbeat = db.Column(db.DateTime, default=datetime.now)
+    next_command = db.Column(db.String(100), default='IDLE')
+    
+    config = db.Column(db.Text, default='{"confidence_threshold": 0.5, "active": true}')
+    
     created_at = db.Column(db.DateTime, default=datetime.now)

@@ -39,7 +39,7 @@
         <td>{{ t.location or "-" }}</td>
         <td>{{ t.created_at }}</td>
         <td>
-          <a class="btn" href="/result/{{ t.id }}">查看 & 管理</a>
+          <a class="btn" href="{{ url_for('web_bp.result_detail', task_id=t.id) }}">查看 & 管理</a>
         </td>
       </tr>
       {% endfor %}

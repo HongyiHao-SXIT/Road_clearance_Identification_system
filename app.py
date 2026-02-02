@@ -6,6 +6,7 @@ from api.main import main_bp
 from api.detect_api import detect_bp
 from web.pages import web_bp
 from api.stats_api import stats_bp
+from api.robot_api import robot_bp
 
 
 def create_app():
@@ -23,6 +24,7 @@ def create_app():
     app.register_blueprint(detect_bp, url_prefix="/api")
     app.register_blueprint(web_bp)
     app.register_blueprint(stats_bp, url_prefix="/api/stats")
+    app.register_blueprint(robot_bp, url_prefix="/api/robot")
 
 
     return app

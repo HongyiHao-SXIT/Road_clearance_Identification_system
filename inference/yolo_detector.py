@@ -34,16 +34,14 @@ class YOLODetector:
         self.model = YOLO(model_path if model_path else "best.pt")
 
     def detect(self, img_path, save_result=False, result_path=None):
-        # 1. 执行推理
+
         results = self.model(img_path)
         result = results[0]
 
-        # 2. 如果要求保存结果图
         if save_result and result_path:
             annotated_frame = result.plot()
             cv2.imwrite(result_path, annotated_frame)
 
-        # 3. 解析结果并返回给后端 API
         detections = []
         for box in result.boxes:
             coords = box.xyxy[0].tolist()

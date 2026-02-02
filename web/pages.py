@@ -1,6 +1,7 @@
-from flask import Blueprint, render_template, request
+from flask import Blueprint, jsonify, render_template, request
 from flask_login import login_required, current_user
-from database.models import DetectTask, DetectItem
+from database.models import DetectTask, DetectItem, Robot
+from database.db import db
 
 web_bp = Blueprint("web_bp", __name__)
 
@@ -31,6 +32,15 @@ def result():
     )
     return render_template("result.html", tasks=pagination.items, pagination=pagination)
 
+@web_bp.route('/result/<int:task_id>')
+@login_required
+def result_detail(task_id):
+    task = DetectTask.query.get_or_404(task_id)
+    
+    items = DetectItem.query.filter_by(task_id=task_id).all()
+    
+    return render_template('detail.html', task=task, items=items)
+
 @web_bp.route("/task")
 @login_required
 def task():
@@ -39,3 +49,10 @@ def task():
 @web_bp.route("/forget")
 def forget():
     return render_template("forget.html")
+
+@web_bp.route('/robot')
+@login_required
+def robot_admin():
+    from database.models import Robot
+    robots = Robot.query.all()
+    return render_template('robot_manage.html', robots=robots)
