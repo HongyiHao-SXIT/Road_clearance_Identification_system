@@ -55,4 +55,4 @@ def forget():
 def robot_admin():
     from database.models import Robot
     robots = Robot.query.all()
-    return render_template('robot_manage.html', robots=robots)
+    return render_template('robot_admin.html', robots=robots)

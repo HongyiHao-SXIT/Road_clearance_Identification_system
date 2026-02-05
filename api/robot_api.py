@@ -1,41 +1,88 @@
 from flask import Blueprint, request, jsonify
 from database.models import Robot
 from database.db import db
-import json
+from datetime import datetime
 
 robot_bp = Blueprint('robot_bp', __name__)
 
-# 机器人端调用：上报心跳和当前位置
+# 1. 心跳同步：仅允许手动注册过的设备更新
 @robot_bp.route('/heartbeat', methods=['POST'])
 def heartbeat():
     data = request.json
     did = data.get('device_id')
-    pos = data.get('position') # 传入的字符串地址或坐标
     
+    # 查找机器人，如果不存在则返回错误（因为你要求手动注册）
     robot = Robot.query.filter_by(device_id=did).first()
     if not robot:
-        # 自动注册新设备
-        robot = Robot(device_id=did, name=f"新机器人_{did[-4:]}")
-        db.session.add(robot)
+        return jsonify({"ok": False, "msg": "设备未注册"}), 403
     
+    # 更新动态数据
+    robot.current_lat = data.get('lat')
+    robot.current_lng = data.get('lng')
     robot.status = 'ONLINE'
-    robot.robot_position = pos
-    robot.last_heartbeat = db.func.now()
+    robot.last_heartbeat = datetime.now() # 建议加上最后活跃时间
     db.session.commit()
     
-    # 返回当前的配置给机器人（实现配置下发）
-    return jsonify({"ok": True, "config": json.loads(robot.config)})
+    # 返回指令给机器人上位机
+    return jsonify({
+        "ok": True,
+        "command": robot.next_command or "IDLE",
+        "target": {
+            "lat": robot.target_lat, 
+            "lng": robot.target_lng
+        }
+    })
 
-# 后台调用：更新机器人配置（远程控制）
-@robot_bp.route('/update_config', methods=['POST'])
-def update_config():
+# 2. 手动注册机器人
+@robot_bp.route('/register', methods=['POST'])
+def manual_register():
     data = request.json
-    rid = data.get('id')
-    new_conf = data.get('config') # 比如 {"active": false} 停止机器人
+    device_id = data.get('device_id')
+    name = data.get('name')
     
-    robot = Robot.query.get(rid)
+    if not device_id or not name:
+        return jsonify({"ok": False, "msg": "信息不完整"})
+
+    if Robot.query.filter_by(device_id=device_id).first():
+        return jsonify({"ok": False, "msg": "该设备 ID 已存在"})
+    
+    # 初始位置可以设为地图默认中心
+    new_robot = Robot(device_id=device_id, name=name, status='OFFLINE')
+    db.session.add(new_robot)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+# 3. 删除机器人
+@robot_bp.route('/delete/<int:id>', methods=['POST'])
+def delete_robot(id):
+    robot = Robot.query.get(id)
     if robot:
-        robot.config = json.dumps(new_conf)
+        db.session.delete(robot)
         db.session.commit()
         return jsonify({"ok": True})
-    return jsonify({"ok": False, "message": "未找到设备"}), 404
+    return jsonify({"ok": False, "msg": "未找到设备"})
+
+# 4. 路径规划
+@robot_bp.route('/navigate', methods=['POST'])
+def navigate_to():
+    data = request.json
+    robot = Robot.query.get(data.get('id'))
+    if not robot:
+        return jsonify({"ok": False, "msg": "机器人不存在"})
+
+    robot.target_lat = data.get('lat')
+    robot.target_lng = data.get('lng')
+    robot.next_command = "NAVIGATE" 
+    db.session.commit()
+    return jsonify({"ok": True, "msg": "目标已锁定"})
+
+# 5. 远程控制 (抓取、复位、停机)
+@robot_bp.route('/control', methods=['POST'])
+def send_control():
+    data = request.json
+    robot = Robot.query.get(data.get('id'))
+    if robot:
+        robot.next_command = data.get('command')
+        db.session.commit()
+        return jsonify({"ok": True})
+    return jsonify({"ok": False})

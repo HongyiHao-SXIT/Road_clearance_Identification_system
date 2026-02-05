@@ -71,8 +71,13 @@ class Robot(db.Model):
     name = db.Column(db.String(100))
     status = db.Column(db.String(20), default='OFFLINE')
     ip_address = db.Column(db.String(50))
+
     current_lat = db.Column(db.Float, nullable=True)
     current_lng = db.Column(db.Float, nullable=True)
+
+    target_lat = db.Column(db.Float, nullable=True)
+    target_lng = db.Column(db.Float, nullable=True)
+    
     last_heartbeat = db.Column(db.DateTime, default=datetime.now)
     next_command = db.Column(db.String(100), default='IDLE')
     
