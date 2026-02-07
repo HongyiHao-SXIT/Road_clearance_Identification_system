@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from config import Config
 from database.db import db
 from api.auth_api import auth_bp, login_manager
@@ -25,6 +25,15 @@ def create_app():
     app.register_blueprint(web_bp)
     app.register_blueprint(stats_bp, url_prefix="/api/stats")
     app.register_blueprint(robot_bp, url_prefix="/api/robot")
+
+    @app.route('/api/stats/summary')
+    def get_summary():
+        return jsonify({
+            "ok": True,
+            "pie_data": [{"name": "塑料瓶", "value": 30}, {"name": "纸张", "value": 20}],
+            "line_data": {"labels": ["周一", "周二", "周三", "周四", "周五"], "values": [10, 20, 15, 25, 30]},
+            "locations": [{"id": 1, "lat": 25.04, "lng": 102.71, "trash_types": "塑料瓶"}]
+        })
 
 
     return app

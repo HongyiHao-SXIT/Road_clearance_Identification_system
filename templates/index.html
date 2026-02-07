@@ -1,141 +1,163 @@
-{% extends "base.html" %}
-{% block content %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<!DOCTYPE html>
+<html lang="en" style="font-size: 97.5px;">
 
-<div class="dashboard-container">
-    <div class="header-section">
-        <h2>🌍 TrashDet 垃圾检测指挥中心</h2>
-        <div class="action-btns">
-            <a href="/upload" class="btn btn-primary">📸 手动上传终端</a>
-            <a href="/result" class="btn">📋 检测结果列表</a>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrashDet 垃圾拾捡机器人管理系统</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style id="ai-assist-right-style">
+        html.ai-assist-html {
+            width: calc(100% - 480px) !important;
+            position: relative !important;
+            min-height: 100vh !important
+        }
+
+        .ai-assist-highlight {
+            background: yellow;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="main_box">
+
+        <div class="header">
+            <div class="left">
+                <div class="date">2024-05-21 09:59:20</div>
+                <div class="week">星期五</div>
+            </div>
+            <div class="center">TrashDet 垃圾拾捡机器人管理系统</div>
+            <div class="right">
+                <p>V 1.2.0 测试版</p>
+            </div>
         </div>
-    </div>
 
-    <div class="map-card">
-        <div id="map" style="height: 450px; border-radius: 15px;"></div>
-    </div>
-
-    <div class="stats-grid">
-        <div class="chart-box">
-            <h3>📊 垃圾种类比例</h3>
-            <div id="pieChart" style="height: 300px;"></div>
+        <div class="content">
+            <div class="center">
+                <div class="item chartWrap">
+                    <div class="module_title">实时地图</div>
+                    <div class="chart_wrap map_wrap" style="position: relative;">
+                        <div class="map_box">
+                            <div id="map" style="width: 100%; height: 450px; border-radius: 15px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="right">
+                <div class="item chartWrap">
+                    <div class="module_title">垃圾类别数据</div>
+                    <div class="inner_wrap chart_wrap" id="carSpaceNum" _echarts_instance_="ec_1718934889440"
+                        style="-webkit-tap-highlight-color: transparent; user-select: none; position: relative;">
+                        <div
+                            style="position: relative; width: 345px; height: 267px; padding: 0px; margin: 0px; border-width: 0px;">
+                            <canvas data-zr-dom-id="zr_0" width="345" height="267"
+                                style="position: absolute; left: 0px; top: 0px; width: 345px; height: 267px; user-select: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0); padding: 0px; margin: 0px; border-width: 0px;"></canvas>
+                        </div>
+                        <div class=""></div>
+                    </div>
+                </div>
+                <div class="item chartWrap">
+                    <div class="module_title">机器人状态</div>
+                    <div class="inner_wrap chart_wrap" id="consumptionChart" _echarts_instance_="ec_1718934889441"
+                        style="-webkit-tap-highlight-color: transparent; user-select: none; position: relative;">
+                        <div
+                            style="position: relative; width: 345px; height: 267px; padding: 0px; margin: 0px; border-width: 0px;">
+                            <canvas data-zr-dom-id="zr_0" width="345" height="267"
+                                style="position: absolute; left: 0px; top: 0px; width: 345px; height: 267px; user-select: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0); padding: 0px; margin: 0px; border-width: 0px;"></canvas>
+                        </div>
+                        <div class=""></div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="chart-box">
-            <h3>📈 近期检测趋势</h3>
-            <div id="lineChart" style="height: 300px;"></div>
-        </div>
-    </div>
-</div>
-
-<style>
-    .dashboard-container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 20px;
-    }
-
-    .header-section {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 25px;
-    }
-
-    .map-card {
-        background: white;
-        padding: 15px;
-        border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-        margin-bottom: 25px;
-    }
-
-    .stats-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
-    }
-
-    .chart-box {
-        background: white;
-        padding: 20px;
-        border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-    }
-
-    h3 {
-        margin-bottom: 15px;
-        font-size: 16px;
-        color: #475569;
-    }
-</style>
-
-<script>
-    // 1. 初始化地图
-    const map = L.map('map').setView([30.0, 110.0], 5);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
-    function loadDashboardData() {
-        fetch('/api/stats/summary')
-            .then(res => res.json())
-            .then(data => {
-                if (!data.ok) return;
-
-                const pieChart = echarts.init(document.getElementById('pieChart'));
-                pieChart.setOption({
-                    tooltip: { trigger: 'item' },
-                    series: [{
-                        type: 'pie',
-                        radius: ['40%', '70%'],
-                        data: data.pie_data
-                    }]
-                });
-
-                const lineChart = echarts.init(document.getElementById('lineChart'));
-                lineChart.setOption({
-                    xAxis: { type: 'category', data: data.line_data.labels },
-                    yAxis: { type: 'value' },
-                    series: [{ data: data.line_data.values, type: 'line', smooth: true }]
-                });
-
-                if (data.locations && data.locations.length > 0) {
-                    data.locations.forEach(loc => {
-                        const marker = L.marker([loc.lat, loc.lng]).addTo(map);
-
-                        const cardHtml = `
-                            <div class="map-card" style="width: 200px; padding: 5px;">
-                                <h4 style="margin: 0 0 8px; color: #2563eb; border-bottom: 1px solid #eee;">任务 #${loc.id}</h4>
-                                <p style="font-size: 13px; margin: 4px 0;">
-                                    <b>识别结果:</b> <span style="color: #ef4444;">${loc.trash_types || '未检测到'}</span>
-                                </p>
-                                <hr style="border: 0; border-top: 1px solid #eee; margin: 8px 0;">
-                                <p style="font-size: 11px; color: #666;">坐标: ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}</p>
+        <div class="footer">
+            <div class="left">
+                <div class="item chartWrap">
+                    <div class="module_title">近期趋势对比</div>
+                    <div class="inner_wrap chart_wrap" id="ticketsChart" _echarts_instance_="ec_1718934889442"
+                        style="-webkit-tap-highlight-color: transparent; user-select: none; position: relative;">
+                        <div
+                            style="position: relative; width: 624px; height: 166px; padding: 0px; margin: 0px; border-width: 0px; cursor: default;">
+                            <canvas data-zr-dom-id="zr_0" width="624" height="166"
+                                style="position: absolute; left: 0px; top: 0px; width: 624px; height: 166px; user-select: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0); padding: 0px; margin: 0px; border-width: 0px;"></canvas>
+                            <div
+                                style="position: absolute !important; visibility: hidden !important; padding: 0px !important; margin: 0px !important; border-width: 0px !important; user-select: none !important; width: 0px !important; height: 0px !important; inset: 0px auto auto 0px !important;">
                             </div>
-                        `;
+                            <div
+                                style="position: absolute !important; visibility: hidden !important; padding: 0px !important; margin: 0px !important; border-width: 0px !important; user-select: none !important; width: 0px !important; height: 0px !important; inset: 0px 0px auto auto !important;">
+                            </div>
+                            <div
+                                style="position: absolute !important; visibility: hidden !important; padding: 0px !important; margin: 0px !important; border-width: 0px !important; user-select: none !important; width: 0px !important; height: 0px !important; inset: auto auto 0px 0px !important;">
+                            </div>
+                            <div
+                                style="position: absolute !important; visibility: hidden !important; padding: 0px !important; margin: 0px !important; border-width: 0px !important; user-select: none !important; width: 0px !important; height: 0px !important; inset: auto 0px 0px auto !important;">
+                            </div>
+                        </div>
+                        <div class=""
+                            style="position: absolute; display: block; border-style: solid; white-space: nowrap; z-index: 9999999; box-shadow: rgba(0, 0, 0, 0.2) 1px 2px 10px; background-color: rgb(255, 255, 255); border-width: 1px; border-radius: 4px; color: rgb(102, 102, 102); font: 14px / 21px &quot;Microsoft YaHei&quot;; padding: 10px; left: 380px; top: 23px; border-color: rgb(111, 125, 227); pointer-events: none; visibility: hidden; opacity: 0;">
+                            <div style="margin: 0px 0 0;line-height:1;">
+                                <div style="font-size:14px;color:#666;font-weight:400;line-height:1;">销售额</div>
+                                <div style="margin: 10px 0 0;line-height:1;">
+                                    <div style="margin: 0px 0 0;line-height:1;">
+                                        <span
+                                            style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:#6f7de3;"></span>
+                                        <span
+                                            style="font-size:14px;color:#666;font-weight:400;margin-left:2px">15时</span>
+                                        <span
+                                            style="float:right;margin-left:20px;font-size:14px;color:#666;font-weight:900">719</span>
+                                        <div style="clear:both"></div>
+                                    </div>
+                                    <div style="clear:both"></div>
+                                </div>
+                                <div style="clear:both"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                        // 绑定 Popup 并设置偏移量防止遮挡点
-                        marker.bindPopup(cardHtml, {
-                            closeButton: false,
-                            offset: L.point(0, -15)
-                        });
+            <div class="right">
+                <div class="item chartWrap">
+                    <div class="module_title">12301呼叫</div>
+                    <div class="inner_wrap chart_wrap" id="helpCellChart" _echarts_instance_="ec_1718934889443"
+                        style="-webkit-tap-highlight-color: transparent; user-select: none; position: relative;">
+                        <div
+                            style="position: relative; width: 531px; height: 166px; padding: 0px; margin: 0px; border-width: 0px; cursor: default;">
+                            <canvas data-zr-dom-id="zr_0" width="531" height="166"
+                                style="position: absolute; left: 0px; top: 0px; width: 531px; height: 166px; user-select: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0); padding: 0px; margin: 0px; border-width: 0px;"></canvas>
+                            <canvas data-zr-dom-id="zr_1" width="531" height="166"
+                                style="position: absolute; left: 0px; top: 0px; width: 531px; height: 166px; user-select: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0); padding: 0px; margin: 0px; border-width: 0px;"></canvas>
+                            <canvas data-zr-dom-id="zr_3" width="531" height="166"
+                                style="position: absolute; left: 0px; top: 0px; width: 531px; height: 166px; user-select: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0); padding: 0px; margin: 0px; border-width: 0px;"></canvas>
+                        </div>
+                        <div class=""></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-                        // 鼠标悬停显示，移开隐藏
-                        marker.on('mouseover', function (e) {
-                            this.openPopup();
-                        });
-                        marker.on('mouseout', function (e) {
-                            this.closePopup();
-                        });
-                    });
+    <script src="{{ url_for('static', filename='jquery.js') }}"></script>
+    <script src="{{ url_for('static', filename='echarts.min.js') }}"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-                    // 自动缩放到第一个点
-                    map.setView([data.locations[0].lat, data.locations[0].lng], 10);
-                }
-            })
-            .catch(err => console.error("加载数据失败:", err));
-    }
+    <script src="{{ url_for('static', filename='rem.js') }}"></script>
+    <script src="{{ url_for('static', filename='date.js') }}"></script>
+    <script src="{{ url_for('static', filename='weather.js') }}"></script>
 
-    loadDashboardData();
-</script>
-{% endblock %}
+    <script src="{{ url_for('static', filename='setData.js') }}"></script>
+
+    <script src="{{ url_for('static', filename='chart.js') }}"></script>
+    <script src="{{ url_for('static', filename='satisfaction.js') }}"></script>
+    <script src="{{ url_for('static', filename='index.js') }}"></script>
+    <script src="{{ url_for('static', filename='map.js') }}"></script>
+</body>
+
+</html>
