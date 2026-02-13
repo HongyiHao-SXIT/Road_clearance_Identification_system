@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" style="font-size: 97.5px;">
+<html lang="zh-CN">
 
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
@@ -7,157 +7,101 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TrashDet 垃圾拾捡机器人管理系统</title>
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='common.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
-    <style id="ai-assist-right-style">
-        html.ai-assist-html {
-            width: calc(100% - 480px) !important;
-            position: relative !important;
-            min-height: 100vh !important
-        }
-
-        .ai-assist-highlight {
-            background: yellow;
-        }
-    </style>
 </head>
 
 <body>
-
     <div class="main_box">
-
         <div class="header">
             <div class="left">
-                <div class="date">2024-05-21 09:59:20</div>
-                <div class="week">星期五</div>
+                <div class="date"></div>
+                <div class="week">载入中...</div>
             </div>
             <div class="center">TrashDet 垃圾拾捡机器人管理系统</div>
             <div class="right">
-                <p>V 1.2.0 测试版</p>
+                <p>系统版本: V 1.2.0</p>
             </div>
         </div>
 
         <div class="content">
-            <div class="center">
-                <div class="item chartWrap">
-                    <div class="module_title">实时地图</div>
-                    <div class="chart_wrap map_wrap" style="position: relative;">
-                        <div class="map_box">
-                            <div id="map" style="width: 100%; height: 450px; border-radius: 15px;"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="right">
-                <div class="item chartWrap">
-                    <div class="module_title">垃圾类别数据</div>
-                    <div class="inner_wrap chart_wrap" id="carSpaceNum" _echarts_instance_="ec_1718934889440"
-                        style="-webkit-tap-highlight-color: transparent; user-select: none; position: relative;">
-                        <div
-                            style="position: relative; width: 345px; height: 267px; padding: 0px; margin: 0px; border-width: 0px;">
-                            <canvas data-zr-dom-id="zr_0" width="345" height="267"
-                                style="position: absolute; left: 0px; top: 0px; width: 345px; height: 267px; user-select: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0); padding: 0px; margin: 0px; border-width: 0px;"></canvas>
-                        </div>
-                        <div class=""></div>
-                    </div>
-                </div>
-                <div class="item chartWrap">
-                    <div class="module_title">机器人状态</div>
-                    <div class="inner_wrap chart_wrap" id="consumptionChart" _echarts_instance_="ec_1718934889441"
-                        style="-webkit-tap-highlight-color: transparent; user-select: none; position: relative;">
-                        <div
-                            style="position: relative; width: 345px; height: 267px; padding: 0px; margin: 0px; border-width: 0px;">
-                            <canvas data-zr-dom-id="zr_0" width="345" height="267"
-                                style="position: absolute; left: 0px; top: 0px; width: 345px; height: 267px; user-select: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0); padding: 0px; margin: 0px; border-width: 0px;"></canvas>
-                        </div>
-                        <div class=""></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="footer">
             <div class="left">
-                <div class="item chartWrap">
-                    <div class="module_title">近期趋势对比</div>
-                    <div class="inner_wrap chart_wrap" id="ticketsChart" _echarts_instance_="ec_1718934889442"
-                        style="-webkit-tap-highlight-color: transparent; user-select: none; position: relative;">
-                        <div
-                            style="position: relative; width: 624px; height: 166px; padding: 0px; margin: 0px; border-width: 0px; cursor: default;">
-                            <canvas data-zr-dom-id="zr_0" width="624" height="166"
-                                style="position: absolute; left: 0px; top: 0px; width: 624px; height: 166px; user-select: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0); padding: 0px; margin: 0px; border-width: 0px;"></canvas>
-                            <div
-                                style="position: absolute !important; visibility: hidden !important; padding: 0px !important; margin: 0px !important; border-width: 0px !important; user-select: none !important; width: 0px !important; height: 0px !important; inset: 0px auto auto 0px !important;">
-                            </div>
-                            <div
-                                style="position: absolute !important; visibility: hidden !important; padding: 0px !important; margin: 0px !important; border-width: 0px !important; user-select: none !important; width: 0px !important; height: 0px !important; inset: 0px 0px auto auto !important;">
-                            </div>
-                            <div
-                                style="position: absolute !important; visibility: hidden !important; padding: 0px !important; margin: 0px !important; border-width: 0px !important; user-select: none !important; width: 0px !important; height: 0px !important; inset: auto auto 0px 0px !important;">
-                            </div>
-                            <div
-                                style="position: absolute !important; visibility: hidden !important; padding: 0px !important; margin: 0px !important; border-width: 0px !important; user-select: none !important; width: 0px !important; height: 0px !important; inset: auto 0px 0px auto !important;">
-                            </div>
+                <div class="inner_left" style="width: 100% !important;">
+                    <div class="item trash_type_box">
+                        <div class="module_title">垃圾种类分布统计</div>
+                        <div class="chart_wrap">
+                            <div id="trashTypeChart" style="width:100%; height:220px;"></div>
                         </div>
-                        <div class=""
-                            style="position: absolute; display: block; border-style: solid; white-space: nowrap; z-index: 9999999; box-shadow: rgba(0, 0, 0, 0.2) 1px 2px 10px; background-color: rgb(255, 255, 255); border-width: 1px; border-radius: 4px; color: rgb(102, 102, 102); font: 14px / 21px &quot;Microsoft YaHei&quot;; padding: 10px; left: 380px; top: 23px; border-color: rgb(111, 125, 227); pointer-events: none; visibility: hidden; opacity: 0;">
-                            <div style="margin: 0px 0 0;line-height:1;">
-                                <div style="font-size:14px;color:#666;font-weight:400;line-height:1;">销售额</div>
-                                <div style="margin: 10px 0 0;line-height:1;">
-                                    <div style="margin: 0px 0 0;line-height:1;">
-                                        <span
-                                            style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:#6f7de3;"></span>
-                                        <span
-                                            style="font-size:14px;color:#666;font-weight:400;margin-left:2px">15时</span>
-                                        <span
-                                            style="float:right;margin-left:20px;font-size:14px;color:#666;font-weight:900">719</span>
-                                        <div style="clear:both"></div>
-                                    </div>
-                                    <div style="clear:both"></div>
-                                </div>
-                                <div style="clear:both"></div>
-                            </div>
+                    </div>
+
+                    <div class="item robot_status_box tourists">
+                        <div class="module_title">机器人在线状态</div>
+                        <div class="chart_wrap">
+                            <ul class="table_head">
+                                <li>
+                                    <span>设备ID</span>
+                                    <span>名称</span>
+                                    <span>实时状态</span>
+                                </li>
+                            </ul>
+                            <ul class="table_body" id="robotListContainer">
+                                <li class="tr_item"><span>载入中...</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="center">
+                <div class="item map_main_box">
+                    <div class="module_title">垃圾分布实况地图</div>
+                    <div class="chart_wrap map_wrap">
+                        <div class="map_box">
+                            <div id="map" style="width: 100%; height: 100%;"></div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="right">
-                <div class="item chartWrap">
-                    <div class="module_title">12301呼叫</div>
-                    <div class="inner_wrap chart_wrap" id="helpCellChart" _echarts_instance_="ec_1718934889443"
-                        style="-webkit-tap-highlight-color: transparent; user-select: none; position: relative;">
-                        <div
-                            style="position: relative; width: 531px; height: 166px; padding: 0px; margin: 0px; border-width: 0px; cursor: default;">
-                            <canvas data-zr-dom-id="zr_0" width="531" height="166"
-                                style="position: absolute; left: 0px; top: 0px; width: 531px; height: 166px; user-select: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0); padding: 0px; margin: 0px; border-width: 0px;"></canvas>
-                            <canvas data-zr-dom-id="zr_1" width="531" height="166"
-                                style="position: absolute; left: 0px; top: 0px; width: 531px; height: 166px; user-select: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0); padding: 0px; margin: 0px; border-width: 0px;"></canvas>
-                            <canvas data-zr-dom-id="zr_3" width="531" height="166"
-                                style="position: absolute; left: 0px; top: 0px; width: 531px; height: 166px; user-select: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0); padding: 0px; margin: 0px; border-width: 0px;"></canvas>
-                        </div>
-                        <div class=""></div>
+                <div class="item work_trend_box">
+                    <div class="module_title">近期捡拾数量趋势</div>
+                    <div class="chart_wrap">
+                        <div id="workTrendChart" style="width:100%; height:220px;"></div>
+                    </div>
+                </div>
+
+                <div class="item robot_battery_box">
+                    <div class="module_title">机器人电量监控</div>
+                    <div class="chart_wrap">
+                        <div id="robotBatteryChart" style="width:100%; height:220px;"></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='jquery.js') }}"></script>
-    <script src="{{ url_for('static', filename='echarts.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/jquery.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/echarts.min.js') }}"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <script src="{{ url_for('static', filename='rem.js') }}"></script>
-    <script src="{{ url_for('static', filename='date.js') }}"></script>
-    <script src="{{ url_for('static', filename='weather.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/rem.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/index.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/map.js') }}"></script>
 
-    <script src="{{ url_for('static', filename='setData.js') }}"></script>
-
-    <script src="{{ url_for('static', filename='chart.js') }}"></script>
-    <script src="{{ url_for('static', filename='satisfaction.js') }}"></script>
-    <script src="{{ url_for('static', filename='index.js') }}"></script>
-    <script src="{{ url_for('static', filename='map.js') }}"></script>
+    <script>
+        // 更新头部时间
+        function updateTime() {
+            var now = new Date();
+            var timeStr = now.getFullYear() + '-' + (now.getMonth() + 1).toString().padStart(2, '0') + '-' + now.getDate().toString().padStart(2, '0') + ' ' + 
+                          now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0') + ':' + now.getSeconds().toString().padStart(2, '0');
+            $('.date').text(timeStr);
+            var weeks = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+            $('.week').text(weeks[now.getDay()]);
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+    </script>
 </body>
-
 </html>

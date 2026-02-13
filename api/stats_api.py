@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify
 from sqlalchemy import func
-from database.models import DetectTask, DetectItem
+from database.models import DetectTask, DetectItem, Robot
 from database.db import db
 import datetime
 
@@ -9,50 +9,56 @@ stats_bp = Blueprint("stats_bp", __name__)
 @stats_bp.route("/summary")
 def get_summary():
     try:
-        tasks = DetectTask.query.filter(
-            DetectTask.latitude.isnot(None), 
-            DetectTask.longitude.isnot(None)
-        ).all()
-
+        # 1. 垃圾分布地图点位
+        tasks = DetectTask.query.filter(DetectTask.latitude.isnot(None)).all()
         locations = []
         for t in tasks:
-
             types = list(set([item.label for item in t.items]))
-            types_str = ", ".join(types) if types else "未识别"
-
             locations.append({
                 "id": t.id,
                 "lat": t.latitude,
                 "lng": t.longitude,
-                "trash_types": types_str,
-                "label": f"任务 #{t.id}: 发现 {len(t.items)} 处垃圾"
+                "trash_types": ", ".join(types) if types else "未知"
             })
 
-        # 1. 饼图数据
+        # 2. 垃圾种类分布 (饼图)
         label_counts = db.session.query(
             DetectItem.label, func.count(DetectItem.id)
         ).group_by(DetectItem.label).all()
         pie_data = [{"name": row[0], "value": row[1]} for row in label_counts]
 
-        # 2. 折线图数据
+        # 3. 近期捡拾数量趋势 (折线图 - 最近7天)
         seven_days_ago = datetime.datetime.now() - datetime.timedelta(days=7)
         trend_counts = db.session.query(
             func.date(DetectTask.created_at).label('date'),
             func.count(DetectTask.id)
         ).filter(DetectTask.created_at >= seven_days_ago)\
          .group_by('date').order_by('date').all()
-
+        
         line_data = {
             "labels": [str(row[0]) for row in trend_counts],
             "values": [row[1] for row in trend_counts]
         }
 
+        # 4. 机器人状态与电量 (列表 & 柱状图)
+        robots = Robot.query.all()
+        robot_list = []
+        for r in robots:
+            # 这里的 battery 字段需确保你在 models.py 的 Robot 类中已定义
+            # 如果没有，可以使用随机数或默认值模拟：getattr(r, 'battery', 80)
+            robot_list.append({
+                "device_id": r.device_id,
+                "name": r.name,
+                "status": r.status,  # ONLINE / OFFLINE
+                "battery": getattr(r, 'battery', 75) 
+            })
+
         return jsonify({
-            "ok": True, 
-            "pie_data": pie_data, 
-            "line_data": line_data, 
-            "locations": locations
+            "ok": True,
+            "locations": locations,
+            "pie_data": pie_data,
+            "line_data": line_data,
+            "robot_list": robot_list
         })
     except Exception as e:
-        print(f"Stats Error: {e}")
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return jsonify({"ok": False, "error": str(e)})

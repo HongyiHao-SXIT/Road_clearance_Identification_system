@@ -80,6 +80,8 @@ class Robot(db.Model):
     
     last_heartbeat = db.Column(db.DateTime, default=datetime.now)
     next_command = db.Column(db.String(100), default='IDLE')
+
+    battery = db.Column(db.Integer, default=100)
     
     config = db.Column(db.Text, default='{"confidence_threshold": 0.5, "active": true}')
     
