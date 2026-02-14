@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}数据分析{% endblock %}
+{% block content %}
+<div class="panel" style="padding:.12rem;">
+    <div class="panel-title">数据分析</div>
+    <div style="padding:.1rem;">
+        <div style="display:flex; gap:.12rem;">
+            <div style="flex:1; background:rgba(4,16,30,.2); padding:.12rem; border-radius:8px;">
+                <div style="color:#82b2c6; font-weight:bold; margin-bottom:.06rem;">垃圾种类分布</div>
+                <div id="pieChart" style="height:260px;"></div>
+            </div>
+            <div style="flex:1; background:rgba(4,16,30,.2); padding:.12rem; border-radius:8px;">
+                <div style="color:#82b2c6; font-weight:bold; margin-bottom:.06rem;">近 7 天趋势</div>
+                <div id="lineChart" style="height:260px;"></div>
+            </div>
+        </div>
+        <div style="margin-top:.14rem;">
+            <div id="statsMap" style="height:520px; border-radius:10px; overflow:hidden; background:#04101e;"></div>
+        </div>
+    </div>
+</div>
+<!-- 引入 echarts 与 leaflet（leaflet.css 已由 base.html 引入） -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{{ url_for('static', filename='js/stats.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}任务详情{% endblock %}
+{% block content %}
+<div class="panel" style="padding:.12rem;">
+    <div class="panel-title">任务 #{{ task.id }} 详情</div>
+    <div style="padding:.1rem; color:#a5bcd0;">
+        <p>来源: {{ task.source_type }} | 设备: {{ task.device_id or '-' }} | 状态: {{ task.status }}</p>
+        <p>位置: {% if task.latitude and task.longitude %}{{ task.latitude }}, {{ task.longitude }}{% else %}{{
+            task.location or '-' }}{% endif %}</p>
+        <p>创建时间: {{ task.created_at }}</p>
+        <hr />
+        <div>
+            <h4 style="color:#82b2c6;">识别结果</h4>
+            {% if items %}
+            <ul style="color:#a5bcd0;">
+                {% for it in items %}
+                <li>Label: {{ it.label }} | 置信度: {{ '%.2f'|format(it.confidence) }} | 处理状态: {{ it.handle_state }}</li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p style="color:#6b7280;">尚无识别项。</p>
+            {% endif %}
+        </div>
+        <hr />
+        <div style="display:flex; gap:.1rem; margin-top:.1rem; align-items:flex-start;">
+            {% if task.source_path %}
+            <div style="flex:1;">
+                <div style="color:#82b2c6; font-weight:600; margin-bottom:.06rem;">原始图片</div>
+                <img src="/{{ task.source_path }}"
+                    style="max-width:100%; border-radius:8px; border:1px solid rgba(60,92,130,.25);" />
+            </div>
+            {% endif %}
+            {% if task.result_path %}
+            <div style="flex:1;">
+                <div style="color:#82b2c6; font-weight:600; margin-bottom:.06rem;">识别后图片</div>
+                <img src="/{{ task.result_path }}"
+                    style="max-width:100%; border-radius:8px; border:1px solid rgba(60,92,130,.25);" />
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

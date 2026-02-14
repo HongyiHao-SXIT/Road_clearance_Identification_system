@@ -3,6 +3,8 @@ from sqlalchemy import func
 from database.models import DetectTask, DetectItem, Robot
 from database.db import db
 import datetime
+from datetime import datetime as dt
+from datetime import timedelta
 
 stats_bp = Blueprint("stats_bp", __name__)
 
@@ -27,7 +29,7 @@ def get_summary():
         ).group_by(DetectItem.label).all()
         pie_data = [{"name": row[0], "value": row[1]} for row in label_counts]
 
-        # 3. 近期捡拾数量趋势 (折线图 - 最近7天)
+        # 3. 近期捡拾数量趋势
         seven_days_ago = datetime.datetime.now() - datetime.timedelta(days=7)
         trend_counts = db.session.query(
             func.date(DetectTask.created_at).label('date'),
@@ -40,18 +42,43 @@ def get_summary():
             "values": [row[1] for row in trend_counts]
         }
 
-        # 4. 机器人状态与电量 (列表 & 柱状图)
+        # 4. 机器人状态与电量（动态评估 online/offline）
         robots = Robot.query.all()
         robot_list = []
+        now = dt.now()
+        to_update = []
+        TIMEOUT = 3
         for r in robots:
-            # 这里的 battery 字段需确保你在 models.py 的 Robot 类中已定义
-            # 如果没有，可以使用随机数或默认值模拟：getattr(r, 'battery', 80)
+            resp_status = r.status
+            if r.last_heartbeat:
+                age = (now - r.last_heartbeat).total_seconds()
+                if age > TIMEOUT:
+                    resp_status = 'OFFLINE'
+                    if r.status != 'OFFLINE':
+                        r.status = 'OFFLINE'
+                        to_update.append(r)
+            else:
+                resp_status = 'OFFLINE'
+                if r.status != 'OFFLINE':
+                    r.status = 'OFFLINE'
+                    to_update.append(r)
+
             robot_list.append({
                 "device_id": r.device_id,
                 "name": r.name,
-                "status": r.status,  # ONLINE / OFFLINE
-                "battery": getattr(r, 'battery', 75) 
+                "status": resp_status,
+                "battery": getattr(r, 'battery', 75),
+                "lat": getattr(r, 'current_lat', None),
+                "lng": getattr(r, 'current_lng', None),
+                "ip_address": r.ip_address,
+                "last_heartbeat": (r.last_heartbeat.isoformat() if r.last_heartbeat else None)
             })
+
+        if to_update:
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
         return jsonify({
             "ok": True,

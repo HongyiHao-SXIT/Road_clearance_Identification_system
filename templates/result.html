@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}任务管理{% endblock %}
+{% block content %}
+<div class="panel" style="padding: .12rem;">
+  <div class="panel-title">任务列表</div>
+  <div style="padding:.1rem;">
+    <table style="width:100%; color:#a5bcd0; border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>来源</th>
+          <th>设备ID</th>
+          <th>状态</th>
+          <th>位置</th>
+          <th>时间</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="taskTableBody">
+        {% for t in tasks %}
+        <tr>
+          <td>{{ t.id }}</td>
+          <td>{{ t.source_type or '-' }}</td>
+          <td>{{ t.device_id or '-' }}</td>
+          <td>{{ t.status }}</td>
+          <td>{% if t.latitude and t.longitude %}{{ t.latitude }}, {{ t.longitude }}{% else %}{{ t.location or '-' }}{% endif %}</td>
+          <td>{{ t.created_at }}</td>
+          <td><a href="{{ url_for('web_bp.result_detail', task_id=t.id) }}">详情</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="margin-top:.1rem; color:#82b2c6;">{% if pagination.has_prev %}<a href="?page={{ pagination.prev_num }}">上一页</a>{% endif %} &nbsp; 第 {{ pagination.page }} 页 &nbsp; {% if pagination.has_next %}<a href="?page={{ pagination.next_num }}">下一页</a>{% endif %}</div>
+  </div>
+</div>
+{% endblock %}

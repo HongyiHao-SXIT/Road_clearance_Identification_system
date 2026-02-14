@@ -1,10 +1,18 @@
 $(document).ready(function () {
     const map = L.map('map').setView([30.0, 110.0], 5);
+    // expose map globally for index updates
+    window._indexMap = map;
 
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
+
+    // small dot icon for compact markers (CSS updated for contrast)
+    const dotIcon = L.divIcon({ className: 'map-dot-icon', html: '<span class="map-dot"></span>', iconSize: [14,14], iconAnchor: [7,7] });
+
+    // robot markers store
+    window._robotMarkers = window._robotMarkers || {};
 
     function loadDashboardData() {
         fetch('/api/stats/summary')
@@ -14,7 +22,7 @@ $(document).ready(function () {
 
                 if (data.locations && data.locations.length > 0) {
                     data.locations.forEach(loc => {
-                        const marker = L.marker([loc.lat, loc.lng]).addTo(map);
+                        const marker = L.marker([loc.lat, loc.lng], { icon: dotIcon }).addTo(map);
 
                         const cardHtml = `
                             <div class="map-card" style="width: 200px; padding: 5px;">
@@ -35,12 +43,40 @@ $(document).ready(function () {
                         marker.on('mouseover', function () { this.openPopup(); });
                         marker.on('mouseout', function () { this.closePopup(); });
                     });
+                }
 
-
-                    //map.setView([data.locations[0].lat, data.locations[0].lng], 10);
+                // update robot markers if provided by server
+                if (data.robot_list && data.robot_list.length > 0) {
+                    updateRobotMarkers(data.robot_list);
                 }
             })
             .catch(err => console.error("地图数据加载失败:", err));
+    }
+
+    // update robot markers function exposed globally
+    function updateRobotMarkers(robots) {
+        const existingIds = new Set(Object.keys(window._robotMarkers));
+        robots.forEach(r => {
+            // ensure r has lat/lng
+            if (r.lat == null || r.lng == null) return;
+            const id = r.device_id || r.id;
+            existingIds.delete(id);
+            if (window._robotMarkers[id]) {
+                // update location and popup
+                window._robotMarkers[id].setLatLng([r.lat, r.lng]);
+                window._robotMarkers[id].getPopup() && window._robotMarkers[id].setPopupContent(`<b>${r.name}</b><br>${r.device_id}<br>${r.status} ${r.battery!=null? r.battery+'%':''}`);
+            } else {
+                const m = L.marker([r.lat, r.lng], { icon: dotIcon }).addTo(map).bindPopup(`<b>${r.name}</b><br>${r.device_id}<br>${r.status} ${r.battery!=null? r.battery+'%':''}`);
+                m.on('click', ()=>{});
+                window._robotMarkers[id] = m;
+            }
+        });
+
+        // remove markers for robots not present
+        existingIds.forEach(id => {
+            try { map.removeLayer(window._robotMarkers[id]); } catch(e){}
+            delete window._robotMarkers[id];
+        });
     }
 
 

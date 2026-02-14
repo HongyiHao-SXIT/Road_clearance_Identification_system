@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}机器人控制 - {{ robot.name }}{% endblock %}
+{% block content %}
+<div class="layout-content">
+    <div class="layout-left" style="width:40%">
+        <div class="layout-inner-left">
+            <div class="panel">
+                <div class="panel-title">机载摄像头</div>
+                <div class="chart-wrap" style="display:flex; flex-direction:column; gap:.08rem;">
+                    <img id="robotCamera" src="" alt="camera" style="width:100%; height:320px; background:#000; object-fit:cover; border-radius:8px;" />
+                    <div style="display:flex; gap:.06rem;">
+                        <input id="streamUrl" placeholder="摄像头流地址（例如 http://192.168.1.100:8080/stream）" style="flex:1; padding:.06rem; background:rgba(6,20,34,.3); border:1px solid rgba(60,92,130,.25); color:#a5bcd0;" />
+                        <button id="btnSetStream">设置</button>
+                    </div>
+                    <div style="display:flex; gap:.06rem; justify-content:center; margin-top:.06rem;">
+                        <button class="ctl-btn" data-cmd="FORWARD">前进</button>
+                        <button class="ctl-btn" data-cmd="LEFT">左转</button>
+                        <button class="ctl-btn" data-cmd="STOP">停止</button>
+                        <button class="ctl-btn" data-cmd="RIGHT">右转</button>
+                        <button class="ctl-btn" data-cmd="BACK">后退</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="layout-center" style="width:60%">
+        <div class="panel">
+            <div class="panel-title">实时地图与导航</div>
+            <div class="chart-wrap map-wrap">
+                <div class="map-box">
+                    <div id="robotControlMap" style="width:100%; height:520px; min-height:520px;"></div>
+                </div>
+            </div>
+            <div style="padding:.12rem; display:flex; gap:.06rem; align-items:center;">
+                <input id="navLat" placeholder="目标纬度" style="flex:1; padding:.06rem;" />
+                <input id="navLng" placeholder="目标经度" style="flex:1; padding:.06rem;" />
+                <button id="btnSetNav">设置导航</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    window.ROBOT = { id: {{ robot.id }}, device_id: "{{ robot.device_id }}", name: "{{ robot.name }}" };
+</script>
+<script src="{{ url_for('static', filename='js/robot_control.js') }}"></script>
+{% endblock %}

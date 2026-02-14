@@ -1,8 +1,7 @@
 from flask import Flask, jsonify
 from config import Config
 from database.db import db
-from api.auth_api import auth_bp, login_manager
-from api.main import main_bp
+# auth/login removed
 from api.detect_api import detect_bp
 from web.pages import web_bp
 from api.stats_api import stats_bp
@@ -17,10 +16,7 @@ def create_app():
 
     db.init_app(app)
 
-    login_manager.init_app(app)
-
-    app.register_blueprint(auth_bp, url_prefix="/auth")
-    app.register_blueprint(main_bp)
+    # auth/login blueprints removed
     app.register_blueprint(detect_bp, url_prefix="/api")
     app.register_blueprint(web_bp)
     app.register_blueprint(stats_bp, url_prefix="/api/stats")

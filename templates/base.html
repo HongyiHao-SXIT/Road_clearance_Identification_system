@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>{% block title %}TrashDet{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+
+<body>
+    <div class="layout-main">
+        <div class="layout-header">
+            <div class="layout-header-left">
+                <div class="header-date"></div>
+                <div class="header-week">载入中...</div>
+            </div>
+            <div class="layout-header-center">TrashDet 垃圾拾捡机器人管理系统</div>
+            <div class="layout-header-right">
+                <p>系统版本: V 1.2.0</p>
+            </div>
+        </div>
+
+        <div style="padding:.12rem;">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/jquery.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/rem.js') }}"></script>
+    <script>
+        function updateTime() {
+            var now = new Date();
+            var timeStr = now.getFullYear() + '-' + (now.getMonth() + 1).toString().padStart(2, '0') + '-' + now.getDate().toString().padStart(2, '0') + ' ' + now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0') + ':' + now.getSeconds().toString().padStart(2, '0');
+            document.querySelectorAll('.header-date').forEach(el => el.innerText = timeStr);
+            var weeks = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+            document.querySelectorAll('.header-week').forEach(el => el.innerText = weeks[now.getDay()]);
+        }
+        setInterval(updateTime, 1000); updateTime();
+    </script>
+</body>
+
+</html>

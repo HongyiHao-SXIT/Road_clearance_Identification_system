@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}手动上传检测{% endblock %}
+{% block content %}
+<div class="panel" style="padding:.12rem;">
+    <div class="panel-title">手动上传检测</div>
+    <div style="padding:.12rem; color:#a5bcd0; display:flex; gap:.12rem;">
+        <div style="flex:1;">
+            <div style="background:rgba(4,16,30,.2); padding:.12rem; border-radius:8px;">
+                <div style="margin-bottom:.08rem;">选择图片</div>
+                <div id="uploadArea"
+                    style="border:1px dashed rgba(60,92,130,.25); padding:.12rem; cursor:pointer; text-align:center; color:#6b7280;">
+                    点击或拖拽图片到此区域
+                    + </div>
+                + <input type="file" id="fileInput" accept="image/*" style="display:none;" />
+                + <div style="display:flex; gap:.08rem; margin-top:.08rem;">
+                    + <button id="randomLocBtn" style="padding:.06rem;">随机坐标</button>
+                    + <button id="clearLocBtn" style="padding:.06rem;">清除坐标</button>
+                    + </div>
+                + <div style="display:flex; gap:.08rem; margin-top:.08rem;">
+                    + <input id="latInput" placeholder="纬度"
+                        style="flex:1; padding:.06rem; background:rgba(6,20,34,.3); border:1px solid rgba(60,92,130,.25); color:#a5bcd0;" />
+                    + <input id="lngInput" placeholder="经度"
+                        style="flex:1; padding:.06rem; background:rgba(6,20,34,.3); border:1px solid rgba(60,92,130,.25); color:#a5bcd0;" />
+                    + </div>
+                + <div style="margin-top:.1rem;">
+                    + <button id="detectBtn" disabled style="padding:.08rem;">开始识别</button>
+                    + <button id="resetBtn" style="padding:.08rem; margin-left:.06rem;">重置</button>
+                    + </div>
+                +
+            </div>
+            +
+        </div>
+        +
+        + <div style="flex:1; display:flex; flex-direction:column; gap:.08rem;">
+            + <div style="background:rgba(4,16,30,.2); padding:.12rem; border-radius:8px;">
+                + <div style="color:#82b2c6; font-weight:600; margin-bottom:.06rem;">原始图片</div>
+                + <img id="originalPreview" src="" style="max-width:100%; display:none; border-radius:8px;" />
+                + </div>
+            + <div style="background:rgba(4,16,30,.2); padding:.12rem; border-radius:8px;">
+                + <div style="color:#82b2c6; font-weight:600; margin-bottom:.06rem;">识别后图片</div>
+                + <img id="annotatedPreview" src="" style="max-width:100%; display:none; border-radius:8px;" />
+                + </div>
+            + </div>
+        +
+    </div>
+    + <div id="resultArea" style="display:none; padding:.12rem; color:#a5bcd0;"></div>
+    +
+</div>
++
++
+<script src="{{ url_for('static', filename='js/upload.js') }}"></script>
++{% endblock %}

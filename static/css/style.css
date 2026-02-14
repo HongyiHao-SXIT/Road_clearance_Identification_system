@@ -1,23 +1,58 @@
 .main_box {
     width: 100vw;
-    height: 100vh;
+    min-height: 100vh;
     background: url('/static/images/bg.png') no-repeat center;
     background-size: cover;
-    overflow: hidden;
+    display: flex;
+    flex-direction: column;
     padding: 10px;
+    box-sizing: border-box;
+    overflow: auto;
 }
 
 * {
-    font-size: .14rem;
+    font-size: .18rem;
 }
 
 .header {
     padding: 0 15px;
     display: flex;
+    align-items: center;
     justify-content: space-between;
     color: #7eb7cb;
     background: #04101e;
-    line-height: 58px;
+    height: 58px;
+    flex: 0 0 58px;
+}
+
+/* Layout-prefixed header compatibility: make center title visible */
+.layout-header {
+    padding: 0 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #7eb7cb;
+    background: #04101e;
+    height: 58px;
+    flex: 0 0 58px;
+}
+
+.layout-header-left {
+    display: flex;
+}
+
+.layout-header-center {
+    font-size: .36rem;
+    font-weight: 700;
+    color: #82b2c6;
+    text-align: center;
+    -webkit-background-clip: unset;
+    -webkit-text-fill-color: unset;
+}
+
+.layout-header-right p {
+    margin: 0;
+    color: #a5bcd0;
 }
 
 .header .left {
@@ -47,9 +82,10 @@
 }
 
 .content {
-    height: calc(100vh - 58px - 24%);
     display: flex;
     margin-top: .05rem;
+    flex: 1 1 auto;
+    overflow: auto;
 }
 
 .content>div {
@@ -96,55 +132,34 @@
     margin-bottom: 3px;
 }
 
-.head_block .level,
 .module_title {
-    font-size: .18rem;
+    font-size: .24rem;
     color: #82b2c6;
 }
-.satisfaction {}
 
-.satisfaction .inner_wrap {}
-
-.satisfaction .inner_wrap h4 {
-    color: #e1cd5d;
-    font-size: .24rem;
-}
-
-.satisfaction .inner_wrap p {
-    padding-top: .1rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    color: #fff;
-}
-
-.chartWrap .module_title span {
-    color: #fff;
-    font-size: .14rem;
-}
-
-.chartWrap .module_title {
-    display: flex;
-    justify-content: space-between;
-}
-
-.chartWrap {
-    display: flex;
-    flex-flow: column;
-}
-
-.chartWrap .chart_wrap {
-    flex: 1;
-}
-
-.chartWrap .chart_wrap>div:first-child {
-    height: 100%;
+/* Tables inside items (make text more readable on task pages) */
+.item table {
     width: 100%;
+    font-size: .18rem;
+    color: #a5bcd0;
+    border-collapse: collapse;
+}
+
+.item table th,
+.item table td {
+    padding: .06rem .08rem;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.item table thead th {
+    font-weight: 600;
+    color: #82b2c6;
 }
 
 .footer {
-    height: 24%;
-    display: flex;
+    /* 页面没有实际 footer 内容时隐藏，避免下方空白 */
+    display: none;
 }
 
 .footer>*,
@@ -200,9 +215,32 @@
         opacity: 0;
     }
 }
+
 .chart_wrap.map_wrap img {
     max-height: calc((100vh - 58px - 24%) * .9);
     max-width: 100%;
+}
+
+/* small circular map marker dot */
+.map-dot-icon {
+    pointer-events: none;
+}
+
+.map-dot-icon .map-dot {
+    display: block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    /* higher contrast: bright yellow -> orange with dark outline */
+    background: linear-gradient(135deg, #ffd400, #ff6a00);
+    border: 2px solid rgba(0, 0, 0, 0.65);
+    box-shadow: 0 0 10px rgba(255, 170, 0, 0.95), 0 0 22px rgba(255, 110, 0, 0.45);
+    transition: transform .12s ease, box-shadow .12s ease;
+}
+
+.map-dot-icon .map-dot:hover {
+    transform: scale(1.5);
+    box-shadow: 0 0 16px rgba(255, 170, 0, 1), 0 0 30px rgba(255, 110, 0, 0.6);
 }
 
 .tourists .chart_wrap {
@@ -241,42 +279,10 @@
 .table_body li:nth-of-type(even) {
     background: rgba(46, 82, 130, .5);
 }
-.legend{
-    width: 150px;
-    position: absolute;
-    right: .15rem;
-    bottom: .15rem;
-    color: #82b2c6;
-    padding: .05rem;
-    border: solid 1px rgba(60, 92, 130, .4);
-    
-}
-.legend p.colorBar {
-    width: 90%;
-    margin: .1rem 0 .1rem 5%;
-    height: 8px;
-    border-radius: 4px;
-    -webkit-border-radius: 4px;
-    -moz-border-radius: 4px;
-    -ms-border-radius: 4px;
-    -o-border-radius: 4px;
-    background-image: linear-gradient(to right, #3de5cc, #f37016 50%, #be0c18);
-}
-.legend p.text {
-    display: flex;
-    justify-content: space-between;
-}
-.legend p.text span:nth-of-type(1) {
-    color: #3de5cc;
-}
-.legend p.text span:nth-of-type(2) {
-    color: #f37016;
-}
-.legend p.text span:nth-of-type(3) {
-    color: #be0c18;
-}
 
-.chart_wrap.map_wrap, 
+/* .legend was unused across templates — removed to simplify CSS */
+
+.chart_wrap.map_wrap,
 .chart_wrap.map_wrap .map_box,
 .chart_wrap.map_wrap .map_box {
     width: 100% !important;
@@ -306,4 +312,412 @@
 .leaflet-control-zoom a {
     font-size: 20px !important;
     line-height: 26px !important;
+}
+
+/* Control panel (控制面板) styles */
+.control_pages .chart_wrap .table_head {
+    display: flex;
+    gap: .06rem;
+    padding: .08rem;
+}
+
+.control_pages .chart_wrap .table_head li {
+    flex: 1;
+}
+
+.control_pages .chart_wrap .table_head li a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: .12rem;
+    height: 100%;
+    min-height: 70px;
+    border-radius: 8px;
+    background: rgba(4, 16, 30, 0.18);
+    border: 1px solid rgba(60, 92, 130, 0.25);
+    color: #82b2c6;
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.control_pages .chart_wrap .table_head li a:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 18px rgba(6, 20, 34, 0.35);
+}
+
+.control_pages .chart_wrap .table_head li a .icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    margin-bottom: .06rem;
+}
+
+/* Ensure generic icon container shows background images/gradients */
+.control_pages .chart_wrap .table_head li a .icon,
+.control-pages .list-head li a .icon,
+.list_head li a .icon {
+    display: inline-block;
+    background-size: cover;
+    background-position: center;
+}
+
+/* Compatibility: kebab-case icon class names used in templates */
+.control_pages .chart_wrap .table_head li a .icon-robot {
+    background-image: linear-gradient(135deg, #3de5cc, #36bfb1);
+}
+
+.control_pages .chart_wrap .table_head li a .icon-task {
+    background-image: linear-gradient(135deg, #f37016, #ffb86b);
+}
+
+.control_pages .chart_wrap .table_head li a .icon-data {
+    background-image: linear-gradient(135deg, #7eb7cb, #3c5c82);
+}
+
+.control_pages .chart_wrap .table_head li a .icon-settings {
+    background-image: linear-gradient(135deg, #9b8cff, #6a4cff);
+}
+
+.control_pages .chart_wrap .table_head li a .title {
+    font-size: .14rem;
+    color: #a9d3de;
+}
+
+/* Individual icon colors */
+.control_pages .chart_wrap .table_head li a .robot_icon {
+    background-image: linear-gradient(135deg, #3de5cc, #36bfb1);
+}
+
+.control_pages .chart_wrap .table_head li a .task_icon {
+    background-image: linear-gradient(135deg, #f37016, #ffb86b);
+}
+
+.control_pages .chart_wrap .table_head li a .data_icon {
+    background-image: linear-gradient(135deg, #7eb7cb, #3c5c82);
+}
+
+.control_pages .chart_wrap .table_head li a .settings_icon {
+    background-image: linear-gradient(135deg, #9b8cff, #6a4cff);
+}
+
+.control_pages .chart_wrap .table_head li a.disabled,
+.control_pages .chart_wrap .table_head li a.disabled:hover {
+    opacity: .5;
+    transform: none;
+    box-shadow: none;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Compatibility styles for renamed classes (duplicated from earlier rules) */
+.main_box {
+    width: 100vw;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    box-sizing: border-box;
+    background: url('/static/images/bg.png') no-repeat center;
+    background-size: cover;
+}
+
+.header {
+    padding: 0 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #7eb7cb;
+    background: #04101e;
+    height: 58px;
+}
+
+.header .left {
+    display: flex;
+}
+
+.header .left>div {
+    font-size: .18rem;
+}
+
+.header .center {
+    font-size: .36rem;
+    font-weight: bold;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.week,
+.weather {
+    color: #a5bcd0;
+}
+
+.content {
+    display: flex;
+    margin-top: .05rem;
+    flex: 1 1 auto;
+    overflow: auto;
+}
+
+.content .left {
+    width: 38%;
+    display: flex;
+}
+
+.content .center {
+    width: 80%;
+    margin-right: .03rem;
+}
+
+.content .right {
+    width: 20%;
+    margin-left: .03px;
+    display: flex;
+    flex-flow: column;
+}
+
+.content .left .inner_left,
+.content .left .inner_right {
+    flex: 1;
+    padding: .1rem;
+}
+
+.item {
+    background-color: rgba(17, 39, 60, .3);
+    border: 1px solid rgba(60, 92, 130, .4);
+    margin-right: 3px;
+    margin-bottom: 3px;
+}
+
+.module_title {
+    font-size: .24rem;
+    color: #82b2c6;
+}
+
+.chart_wrap {
+    padding: .08rem;
+}
+
+.map_box {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.map_wrap {
+    height: 100%;
+}
+
+.list_head {
+    display: flex;
+    gap: .06rem;
+    padding: .08rem;
+}
+
+.list_head li {
+    flex: 1;
+}
+
+.list_head li a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: .12rem;
+    height: 100%;
+    min-height: 70px;
+    border-radius: 8px;
+    background: rgba(4, 16, 30, 0.18);
+    border: 1px solid rgba(60, 92, 130, 0.25);
+    color: #82b2c6;
+}
+
+.list_head li a .icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    margin-bottom: .06rem;
+}
+
+.control_title {
+    font-size: .14rem;
+    color: #a9d3de;
+}
+
+.robot-list .list-body {
+    flex: 1;
+    display: flex;
+    flex-flow: column;
+}
+
+.list-item {
+    display: flex;
+    align-items: center;
+}
+
+.list-item span {
+    flex: 1;
+    text-align: center;
+    color: #a5bcd0;
+}
+
+/* New class styles for renamed elements (ensure compatibility) */
+.layout-main {
+    width: 100vw;
+    min-height: 100vh;
+    background: url('/static/images/bg.png') no-repeat center;
+    background-size: cover;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+.layout-header {
+    padding: 0 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #7eb7cb;
+    background: #04101e;
+    height: 58px;
+}
+
+.layout-header .layout-header-left {
+    display: flex;
+}
+
+.layout-header .layout-header-left>div {
+    font-size: .18rem;
+}
+
+.layout-header .layout-header-center {
+    font-size: .36rem;
+    font-weight: bold;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.header-date,
+.header-week {
+    color: #a5bcd0;
+    padding-left: 12px;
+}
+
+.layout-content {
+    display: flex;
+    margin-top: .05rem;
+    flex: 1 1 auto;
+    overflow: auto;
+}
+
+.layout-left {
+    width: 38%;
+    display: flex;
+}
+
+.layout-center {
+    width: 80%;
+    margin-right: .03rem;
+}
+
+.layout-center .panel {
+    height: calc(100% - 3px);
+    padding: .1rem;
+}
+
+.layout-right {
+    width: 20%;
+    margin-left: .03px;
+    display: flex;
+    flex-flow: column;
+}
+
+.layout-right .panel {
+    flex: 1;
+    padding: .1rem;
+}
+
+.layout-inner-left,
+.layout-inner-right {
+    flex: 1;
+    padding: .1rem;
+}
+
+.panel {
+    background-color: rgba(17, 39, 60, .3);
+    border: 1px solid rgba(60, 92, 130, .4);
+    margin-right: 3px;
+    margin-bottom: 3px;
+}
+
+.panel-title {
+    font-size: .24rem;
+    color: #82b2c6;
+}
+
+.chart-wrap {
+    padding: .08rem;
+}
+
+.map-box {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.map-wrap {
+    height: 100%;
+}
+
+.control-pages .list-head {
+    display: flex;
+    gap: .06rem;
+    padding: .08rem;
+}
+
+.control-pages .list-head li {
+    flex: 1;
+}
+
+.control-pages .list-head li a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: .12rem;
+    height: 100%;
+    min-height: 70px;
+    border-radius: 8px;
+    background: rgba(4, 16, 30, 0.18);
+    border: 1px solid rgba(60, 92, 130, 0.25);
+    color: #82b2c6;
+}
+
+.control-pages .list-head li a .icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    margin-bottom: .06rem;
+}
+
+.control-title {
+    font-size: .14rem;
+    color: #a9d3de;
+}
+
+.robot-list .list-body {
+    flex: 1;
+    display: flex;
+    flex-flow: column;
+}
+
+.list-item {
+    display: flex;
+    align-items: center;
+}
+
+.list-item span {
+    flex: 1;
+    text-align: center;
+    color: #a5bcd0;
 }

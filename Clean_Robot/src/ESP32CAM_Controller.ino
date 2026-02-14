@@ -16,10 +16,16 @@
 #include "esp_camera.h"
 #include <FS.h>
 #include <SPIFFS.h>
+// HTTP client for posting status to server
+#include <HTTPClient.h>
 
 // WiFi配置
 const char* ssid = "YourWiFiSSID";
 const char* password = "YourWiFiPassword";
+
+// Robot integration
+const char* SERVER_BASE = "http://192.168.1.100:5000"; // <-- set to your server
+const char* ROBOT_DEVICE_ID = "ESP32CAM-001";
 
 // 服务器端口
 #define HTTP_SERVER_PORT 8080
@@ -145,6 +151,33 @@ void sendCameraStatus() {
   char buffer[JSON_DOC_SIZE];
   serializeJson(doc, buffer);
   sendWebSocketMessage(buffer);
+
+  // also POST to server status endpoint (non-blocking best-effort)
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    String url = String(SERVER_BASE) + "/api/robot/status_update";
+    http.begin(url);
+    http.addHeader("Content-Type", "application/json");
+
+    // build JSON payload similar to server fields
+    StaticJsonDocument<JSON_DOC_SIZE> p;
+    p["device_id"] = ROBOT_DEVICE_ID;
+    p["lat"] = 0.0; // camera board may not have GPS; keep 0 or provide via serial
+    p["lng"] = 0.0;
+    p["battery"] = cameraStatus.battery;
+    p["status"] = cameraStatus.streaming ? String("ONLINE") : String("IDLE");
+    String out;
+    serializeJson(p, out);
+
+    int code = http.POST(out);
+    if (code > 0) {
+      // optionally parse response (skipped to avoid blocking work)
+      // String resp = http.getString();
+    } else {
+      Serial.printf("Status POST failed, error=%d\n", code);
+    }
+    http.end();
+  }
 }
 
 // 处理WebSocket事件

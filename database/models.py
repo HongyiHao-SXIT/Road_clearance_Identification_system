@@ -6,6 +6,7 @@ import werkzeug.security as security
 class User(db.Model, UserMixin):
     __tablename__ = 'user'
     __table_args__ = {'extend_existing': True}
+    
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
@@ -24,9 +25,11 @@ class User(db.Model, UserMixin):
     def check_securitycode(self, security_code):
         return security.check_password_hash(self.security_code, security_code)
 
+
 class DetectTask(db.Model):
     __tablename__ = 'detect_task'
     __table_args__ = {'extend_existing': True}
+    
     id = db.Column(db.Integer, primary_key=True)
     source_type = db.Column(db.String(20))
     source_path = db.Column(db.String(255))
@@ -41,9 +44,11 @@ class DetectTask(db.Model):
 
     items = db.relationship('DetectItem', backref='task', lazy=True)
 
+
 class DetectItem(db.Model):
     __tablename__ = 'detect_item'
     __table_args__ = {'extend_existing': True}
+    
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.Integer, db.ForeignKey('detect_task.id'))
     label = db.Column(db.String(50))
@@ -56,16 +61,20 @@ class DetectItem(db.Model):
     handle_state = db.Column(db.String(20), default='NEW')
     updated_at = db.Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())
 
+
 class OpsLog(db.Model):
     __tablename__ = 'ops_log'
     __table_args__ = {'extend_existing': True}
+    
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer)
     action = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.now)
 
+
 class Robot(db.Model):
     __tablename__ = 'robot'
+    
     id = db.Column(db.Integer, primary_key=True)
     device_id = db.Column(db.String(50), unique=True, nullable=False)
     name = db.Column(db.String(100))
@@ -82,7 +91,5 @@ class Robot(db.Model):
     next_command = db.Column(db.String(100), default='IDLE')
 
     battery = db.Column(db.Integer, default=100)
-    
     config = db.Column(db.Text, default='{"confidence_threshold": 0.5, "active": true}')
-    
     created_at = db.Column(db.DateTime, default=datetime.now)

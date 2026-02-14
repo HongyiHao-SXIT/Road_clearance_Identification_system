@@ -22,7 +22,6 @@ dist/
 build/
 *.egg-info/
 runs/
-test/
 
 .vscode/
 .idea/
