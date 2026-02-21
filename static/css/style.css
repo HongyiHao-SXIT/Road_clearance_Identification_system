@@ -409,47 +409,9 @@
     pointer-events: none;
 }
 
-/* Compatibility styles for renamed classes (duplicated from earlier rules) */
-.main_box {
-    width: 100vw;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    padding: 10px;
-    box-sizing: border-box;
-    background: url('/static/images/bg.png') no-repeat center;
-    background-size: cover;
-}
+/* Compatibility styles for renamed classes were consolidated earlier.
+   Duplicate header/box rules removed to avoid conflicting definitions. */
 
-.header {
-    padding: 0 15px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    color: #7eb7cb;
-    background: #04101e;
-    height: 58px;
-}
-
-.header .left {
-    display: flex;
-}
-
-.header .left>div {
-    font-size: .18rem;
-}
-
-.header .center {
-    font-size: .36rem;
-    font-weight: bold;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.week,
-.weather {
-    color: #a5bcd0;
-}
 
 .content {
     display: flex;
@@ -558,6 +520,232 @@
     flex: 1;
     text-align: center;
     color: #a5bcd0;
+}
+
+/* Robot control status card & log */
+.robot-status-card {
+    margin-top: .08rem;
+    padding: .08rem .1rem;
+    background: rgba(4, 16, 30, 0.75);
+    border-radius: 8px;
+    border: 1px solid rgba(60, 92, 130, 0.6);
+    font-size: .14rem;
+    color: #a5bcd0;
+}
+
+.robot-status-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .06rem;
+    margin-bottom: .06rem;
+}
+
+.robot-name {
+    font-weight: 600;
+    color: #e5f4ff;
+}
+
+.robot-device {
+    font-size: .13rem;
+    opacity: .8;
+}
+
+.status-badge {
+    padding: .02rem .08rem;
+    border-radius: 999px;
+    font-size: .12rem;
+    border: 1px solid transparent;
+}
+
+.status-online {
+    background: rgba(22, 163, 74, 0.25);
+    border-color: rgba(34, 197, 94, 0.9);
+    color: #bbf7d0;
+}
+
+.status-offline {
+    background: rgba(127, 29, 29, 0.45);
+    border-color: rgba(248, 113, 113, 0.9);
+    color: #fecaca;
+}
+
+.robot-status-row {
+    display: flex;
+    align-items: center;
+    gap: .06rem;
+    margin-top: .04rem;
+}
+
+.robot-status-row .label {
+    width: .7rem;
+    color: #7eb7cb;
+}
+
+.robot-status-row .value {
+    flex: 1;
+    text-align: right;
+}
+
+.battery-bar {
+    flex: 1;
+    height: .12rem;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.9);
+    overflow: hidden;
+}
+
+.battery-bar-inner {
+    height: 100%;
+    background: linear-gradient(90deg, #22c55e, #facc15);
+    width: 0;
+}
+
+.robot-log-panel {
+    margin-top: .1rem;
+    padding: .06rem .08rem;
+    background: rgba(4, 16, 30, 0.8);
+    border-radius: 8px;
+    border: 1px solid rgba(30, 64, 104, 0.8);
+}
+
+.robot-log-title {
+    font-size: .14rem;
+    color: #82b2c6;
+    margin-bottom: .04rem;
+}
+
+.robot-log-list {
+    max-height: 140px;
+    overflow-y: auto;
+    font-size: .12rem;
+}
+
+.robot-log-item {
+    display: flex;
+    gap: .06rem;
+    padding: .02rem 0;
+}
+
+.robot-log-item .time {
+    color: #64748b;
+    width: .9rem;
+}
+
+.robot-log-item .text {
+    flex: 1;
+    color: #e2e8f0;
+}
+
+/* Upload page cards */
+.upload-card {
+    background: rgba(255, 255, 255, 0.06);
+    padding: .12rem;
+    border-radius: 8px;
+    border: 1px solid rgba(148, 163, 184, 0.5);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.5);
+}
+
+.upload-drop-area {
+    border: 1px dashed rgba(148, 163, 184, 0.8);
+    padding: .12rem;
+    cursor: pointer;
+    text-align: center;
+    color: #6b7280;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.9);
+}
+
+/* Generic button styling for control interfaces */
+.btn,
+button,
+.ctl-btn,
+.btn-operate,
+.btn-delete {
+    font-size: .16rem;
+    padding: .06rem .14rem;
+    border-radius: 6px;
+    border: 1px solid rgba(60, 92, 130, 0.6);
+    background: linear-gradient(135deg, #123047, #061426);
+    color: #e5f4ff;
+    cursor: pointer;
+    transition: transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease;
+    outline: none;
+}
+
+.btn:hover,
+button:hover,
+.ctl-btn:hover,
+.btn-operate:hover,
+.btn-delete:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
+    border-color: #3de5cc;
+}
+
+.btn:active,
+button:active,
+.ctl-btn:active,
+.btn-operate:active,
+.btn-delete:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4) inset;
+}
+
+/* Primary control buttons (robot_control direction keys) */
+.ctl-btn[data-cmd="FORWARD"],
+.ctl-btn[data-cmd="BACK"],
+.ctl-btn[data-cmd="LEFT"],
+.ctl-btn[data-cmd="RIGHT"],
+.ctl-btn[data-cmd="STOP"] {
+    min-width: 70px;
+    background: radial-gradient(circle at top, #3de5cc, #137a68);
+    border-color: rgba(30, 190, 160, 0.8);
+}
+
+.ctl-btn[data-cmd="STOP"] {
+    background: radial-gradient(circle at top, #f97373, #b91c1c);
+    border-color: rgba(248, 113, 113, 0.9);
+}
+
+/* Robot admin action buttons */
+.btn-operate {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    border-color: rgba(59, 130, 246, 0.9);
+    color: #e5f4ff;
+    text-decoration: none;
+    padding: .04rem .12rem;
+}
+
+.btn-delete {
+    background: linear-gradient(135deg, #f87171, #b91c1c);
+    border-color: rgba(220, 38, 38, 0.9);
+    color: #fee2e2;
+    margin-left: .04rem;
+}
+
+/* Task list details button */
+.btn-detail {
+    display: inline-block;
+    font-size: .14rem;
+    padding: .04rem .14rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #7eb7cb, #3c5c82);
+    border: 1px solid rgba(126, 183, 203, 0.95);
+    color: #e5f4ff;
+    text-decoration: none;
+}
+
+.btn-detail:hover {
+    box-shadow: 0 3px 8px rgba(15, 23, 42, 0.6);
+    transform: translateY(-1px);
+}
+
+/* Stream / nav buttons in robot_control */
+#btnSetStream,
+#btnSetNav {
+    background: linear-gradient(135deg, #7eb7cb, #3c5c82);
+    border-color: rgba(126, 183, 203, 0.9);
 }
 
 /* New class styles for renamed elements (ensure compatibility) */

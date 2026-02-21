@@ -7,25 +7,27 @@
     <table style="width:100%; color:#a5bcd0; border-collapse:collapse;">
       <thead>
         <tr>
-          <th>ID</th>
-          <th>来源</th>
-          <th>设备ID</th>
-          <th>状态</th>
-          <th>位置</th>
-          <th>时间</th>
-          <th>操作</th>
+          <th style="text-align:left; padding:.06rem .08rem;">ID</th>
+          <th style="text-align:left; padding:.06rem .08rem;">来源</th>
+          <th style="text-align:left; padding:.06rem .08rem;">设备ID</th>
+          <th style="text-align:left; padding:.06rem .08rem;">状态</th>
+          <th style="text-align:left; padding:.06rem .08rem;">位置</th>
+          <th style="text-align:left; padding:.06rem .08rem;">时间</th>
+          <th style="text-align:center; padding:.06rem .08rem;">操作</th>
         </tr>
       </thead>
       <tbody id="taskTableBody">
         {% for t in tasks %}
         <tr>
-          <td>{{ t.id }}</td>
-          <td>{{ t.source_type or '-' }}</td>
-          <td>{{ t.device_id or '-' }}</td>
-          <td>{{ t.status }}</td>
-          <td>{% if t.latitude and t.longitude %}{{ t.latitude }}, {{ t.longitude }}{% else %}{{ t.location or '-' }}{% endif %}</td>
-          <td>{{ t.created_at }}</td>
-          <td><a href="{{ url_for('web_bp.result_detail', task_id=t.id) }}">详情</a></td>
+          <td style="padding:.06rem .08rem;">{{ t.id }}</td>
+          <td style="padding:.06rem .08rem;">{{ t.source_type or '-' }}</td>
+          <td style="padding:.06rem .08rem;">{{ t.device_id or '-' }}</td>
+          <td style="padding:.06rem .08rem;">{{ t.status }}</td>
+          <td style="padding:.06rem .08rem;">{% if t.latitude and t.longitude %}{{ t.latitude }}, {{ t.longitude }}{% else %}{{ t.location or '-' }}{% endif %}</td>
+          <td style="padding:.06rem .08rem;">{{ t.created_at }}</td>
+          <td style="padding:.06rem .08rem; text-align:center; white-space:nowrap;">
+            <a class="btn-detail" href="{{ url_for('web_bp.result_detail', task_id=t.id) }}">详情</a>
+          </td>
         </tr>
         {% endfor %}
       </tbody>

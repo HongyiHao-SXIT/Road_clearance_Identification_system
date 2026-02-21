@@ -19,11 +19,20 @@ class User(db.Model, UserMixin):
     def check_password(self, password):
         return security.check_password_hash(self.password_hash, password)
     
-    def set_securitycode(self, security_code):
+    def set_security_code(self, security_code):
+        """Set security code hash (PEP8-compliant name)."""
         self.security_code = security.generate_password_hash(security_code)
 
-    def check_securitycode(self, security_code):
+    def check_security_code(self, security_code):
+        """Check security code against stored hash (PEP8-compliant name)."""
         return security.check_password_hash(self.security_code, security_code)
+
+    # Backwards-compatible aliases for old method names
+    def set_securitycode(self, security_code):
+        return self.set_security_code(security_code)
+
+    def check_securitycode(self, security_code):
+        return self.check_security_code(security_code)
 
 
 class DetectTask(db.Model):

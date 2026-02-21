@@ -1,6 +1,7 @@
 import requests
 import time
 import argparse
+import cv2
 
 
 # Simple robot simulator for testing the server's robot endpoints.
@@ -11,7 +12,7 @@ import argparse
 
 def simulate_robot(server='http://127.0.0.1:5000', device_id='SIM_ROBOT_001', name='Simulator',
                    lat=30.50, lng=114.30, battery=90, interval=2.0, use_status=False,
-                   auto_register=True, nav_after=None):
+                   auto_register=True, nav_after=None, enable_camera=False):
     """Simulator that can use /heartbeat or /status_update.
 
     - use_status: when True POSTs to /api/robot/status_update instead of /heartbeat
@@ -25,6 +26,13 @@ def simulate_robot(server='http://127.0.0.1:5000', device_id='SIM_ROBOT_001', na
 
     print(f"启动机器人模拟: {device_id} -> {'status_update' if use_status else 'heartbeat'}")
     start_time = time.time()
+
+    cap = None
+    if enable_camera:
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            print('无法打开本地摄像头，关闭摄像头模拟')
+            cap = None
 
     try:
         while battery > 0:
@@ -75,6 +83,21 @@ def simulate_robot(server='http://127.0.0.1:5000', device_id='SIM_ROBOT_001', na
             except requests.exceptions.RequestException as e:
                 print('请求失败：', e)
 
+            # OpenCV 摄像头预览（可选）
+            if cap is not None:
+                ret, frame = cap.read()
+                if ret:
+                    cv2.imshow(f'Robot Camera - {device_id}', frame)
+                    # 按 q 退出模拟
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        print('检测到按键 q，停止模拟')
+                        break
+                else:
+                    print('摄像头读取失败，关闭摄像头模拟')
+                    cap.release()
+                    cv2.destroyAllWindows()
+                    cap = None
+
             # optionally send a test navigate command after nav_after seconds
             if nav_after and (time.time() - start_time) > nav_after:
                 try:
@@ -100,12 +123,20 @@ def simulate_robot(server='http://127.0.0.1:5000', device_id='SIM_ROBOT_001', na
                     print('发送导航命令失败', e)
                 nav_after = None
 
-            # battery drain and wait
-            battery -= 0.2 * (interval / 2.0)
+            # battery drain and wait（逐渐下降，直到耗尽）
+            battery = max(0.0, battery - 0.1 * (interval / 2.0))
+            if battery <= 0:
+                print('电量耗尽，模拟结束')
+                break
+
             time.sleep(interval)
 
     except KeyboardInterrupt:
         print('\n模拟终止')
+    finally:
+        if cap is not None:
+            cap.release()
+        cv2.destroyAllWindows()
 
 
 def main():
@@ -117,10 +148,12 @@ def main():
     p.add_argument('--lng', type=float, default=114.3)
     p.add_argument('--battery', type=float, default=90)
     p.add_argument('--interval', type=float, default=2.0, help='Heartbeat interval seconds')
+    p.add_argument('--camera', action='store_true', help='Enable local OpenCV camera preview')
     args = p.parse_args()
 
     simulate_robot(server=args.server, device_id=args.id, name=args.name,
-                   lat=args.lat, lng=args.lng, battery=args.battery, interval=args.interval)
+                   lat=args.lat, lng=args.lng, battery=args.battery,
+                   interval=args.interval, enable_camera=args.camera)
 
 
 if __name__ == '__main__':

@@ -1,6 +1,7 @@
 import os
 import uuid
 import requests
+import logging
 from datetime import datetime
 from flask import Blueprint, current_app, request, jsonify
 from database.db import db
@@ -8,6 +9,7 @@ from database.models import DetectTask, DetectItem
 from inference.yolo_detector import YOLODetector
 
 detect_bp = Blueprint("detect_bp", __name__)
+logger = logging.getLogger(__name__)
 
 def _ensure_dirs():
     upload_dir = current_app.config.get("UPLOAD_DIR", "static/uploads")
@@ -16,7 +18,7 @@ def _ensure_dirs():
     os.makedirs(result_dir, exist_ok=True)
 
 @detect_bp.route("/detect", methods=["POST"])
-def detect_upload():
+def run_detection():
     _ensure_dirs()
     
     lat = request.form.get("latitude")
@@ -26,7 +28,7 @@ def detect_upload():
 
     address_str = "未知地点"
     if lat and lng:
-        address_str = get_address(lat, lng)
+        address_str = resolve_address_from_coords(lat, lng)
 
     if not f:
         return jsonify({"ok": False, "message": "未收到文件"}), 400
@@ -96,10 +98,10 @@ def detect_upload():
 
     except Exception as e:
         db.session.rollback()
-        print(f"!!! 后端错误详情: {str(e)}")
+        logger.exception("检测处理失败")
         return jsonify({"ok": False, "message": str(e)}), 500
     
-def get_address(lat, lng):
+def resolve_address_from_coords(lat, lng):
     if not lat or not lng:
         return "未知地点"
     
@@ -118,5 +120,5 @@ def get_address(lat, lng):
             return f"坐标： {lat}, {lng} (无法解析地址)"
         
     except Exception as e:
-        print(f"地址解析错误: {str(e)}")
+        logger.exception("地址解析失败")
         return f"坐标： {lat}, {lng} (解析地址失败)"

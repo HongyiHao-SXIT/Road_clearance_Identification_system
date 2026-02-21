@@ -83,7 +83,6 @@ $(document).ready(function () {
     loadDashboardData();
     setTimeout(function () {
         map.invalidateSize(true);
-        console.log("地图尺寸已重新适配");
     }, 500);
 
     $(window).on('resize', function () {

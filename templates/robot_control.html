@@ -12,12 +12,50 @@
                         <input id="streamUrl" placeholder="摄像头流地址（例如 http://192.168.1.100:8080/stream）" style="flex:1; padding:.06rem; background:rgba(6,20,34,.3); border:1px solid rgba(60,92,130,.25); color:#a5bcd0;" />
                         <button id="btnSetStream">设置</button>
                     </div>
-                    <div style="display:flex; gap:.06rem; justify-content:center; margin-top:.06rem;">
+                    <div style="display:flex; flex-wrap:wrap; gap:.06rem; justify-content:center; margin-top:.06rem;">
                         <button class="ctl-btn" data-cmd="FORWARD">前进</button>
                         <button class="ctl-btn" data-cmd="LEFT">左转</button>
                         <button class="ctl-btn" data-cmd="STOP">停止</button>
                         <button class="ctl-btn" data-cmd="RIGHT">右转</button>
                         <button class="ctl-btn" data-cmd="BACK">后退</button>
+                        <button class="ctl-btn" data-cmd="PICK_TRASH">抓取垃圾</button>
+                    </div>
+
+                    <div class="robot-status-card">
+                        <div class="robot-status-header">
+                            <div class="robot-name">{{ robot.name }}</div>
+                            <div class="robot-device">ID: {{ robot.device_id }}</div>
+                            <span id="robotStatusBadge" class="status-badge status-offline">OFFLINE</span>
+                        </div>
+                        <div class="robot-status-row">
+                            <span class="label">电量</span>
+                            <div class="battery-bar"><div id="robotBatteryBar" class="battery-bar-inner" style="width:0%"></div></div>
+                            <span id="robotBatteryText" class="value">-</span>
+                        </div>
+                        <div class="robot-status-row">
+                            <span class="label">位置</span>
+                            <span id="robotPosition" class="value">--</span>
+                        </div>
+                        <div class="robot-status-row">
+                            <span class="label">目标</span>
+                            <span id="robotTarget" class="value">--</span>
+                        </div>
+                        <div class="robot-status-row">
+                            <span class="label">上线时间</span>
+                            <span id="robotLastHeartbeat" class="value">--</span>
+                        </div>
+                        <div class="robot-status-row">
+                            <span class="label">导航</span>
+                            <div style="flex:1; display:flex; gap:.04rem; align-items:center;">
+                                <input id="navLat" placeholder="目标纬度" style="flex:1; padding:.04rem .06rem; background:rgba(6,20,34,.3); border:1px solid rgba(60,92,130,.35); color:#a5bcd0; border-radius:4px; font-size:.13rem;" />
+                                <input id="navLng" placeholder="目标经度" style="flex:1; padding:.04rem .06rem; background:rgba(6,20,34,.3); border:1px solid rgba(60,92,130,.35); color:#a5bcd0; border-radius:4px; font-size:.13rem;" />
+                                <button id="btnSetNav" style="padding:.04rem .16rem; font-size:.13rem;">设置</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="robot-log-panel">
+                        <div class="robot-log-title">控制日志</div>
+                        <div id="robotLogList" class="robot-log-list"></div>
                     </div>
                 </div>
             </div>
@@ -32,18 +70,22 @@
                     <div id="robotControlMap" style="width:100%; height:520px; min-height:520px;"></div>
                 </div>
             </div>
-            <div style="padding:.12rem; display:flex; gap:.06rem; align-items:center;">
-                <input id="navLat" placeholder="目标纬度" style="flex:1; padding:.06rem;" />
-                <input id="navLng" placeholder="目标经度" style="flex:1; padding:.06rem;" />
-                <button id="btnSetNav">设置导航</button>
-            </div>
         </div>
     </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<div id="robotMeta" data-id="{{ robot.id }}" data-device-id="{{ robot.device_id }}" data-name="{{ robot.name }}" style="display:none"></div>
 <script>
-    window.ROBOT = { id: {{ robot.id }}, device_id: "{{ robot.device_id }}", name: "{{ robot.name }}" };
+    (function() {
+        var meta = document.getElementById('robotMeta');
+        if (!meta) return;
+        window.ROBOT = {
+            id: parseInt(meta.dataset.id || '0', 10),
+            device_id: meta.dataset.deviceId || '',
+            name: meta.dataset.name || ''
+        };
+    })();
 </script>
 <script src="{{ url_for('static', filename='js/robot_control.js') }}"></script>
 {% endblock %}

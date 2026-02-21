@@ -2,7 +2,6 @@ from flask import Blueprint, request, jsonify
 from database.models import Robot
 from database.db import db
 from datetime import datetime
-from datetime import timedelta
 
 robot_bp = Blueprint('robot_bp', __name__)
 
@@ -11,7 +10,7 @@ HEARTBEAT_TIMEOUT = 15
 
 # 1. 心跳同步：仅允许手动注册过的设备更新
 @robot_bp.route('/heartbeat', methods=['POST'])
-def heartbeat():
+def robot_heartbeat():
     data = request.json
     did = data.get('device_id')
     
@@ -35,14 +34,17 @@ def heartbeat():
     if ip:
         robot.ip_address = ip
     robot.last_heartbeat = datetime.now()
+    # grab pending command then clear it so it won't be re-delivered
+    cmd = robot.next_command or "IDLE"
+    robot.next_command = None
     db.session.commit()
-    
+
     # 返回指令给机器人上位机
     return jsonify({
         "ok": True,
-        "command": robot.next_command or "IDLE",
+        "command": cmd,
         "target": {
-            "lat": robot.target_lat, 
+            "lat": robot.target_lat,
             "lng": robot.target_lng
         }
     })
@@ -50,7 +52,7 @@ def heartbeat():
 
 # 更丰富的实时状态上报（可由机器人通过 wifi 定期 POST）
 @robot_bp.route('/status_update', methods=['POST'])
-def status_update():
+def update_robot_status():
     data = request.json or {}
     did = data.get('device_id')
     robot = Robot.query.filter_by(device_id=did).first()
@@ -83,18 +85,21 @@ def status_update():
             pass
 
     robot.last_heartbeat = datetime.now()
+    # grab pending command then clear it so it won't be re-delivered
+    cmd = robot.next_command or "IDLE"
+    robot.next_command = None
     db.session.commit()
 
     # Respond with any pending command and target
     return jsonify({
         "ok": True,
-        "command": robot.next_command or "IDLE",
+        "command": cmd,
         "target": {"lat": robot.target_lat, "lng": robot.target_lng}
     })
 
 # 2. 手动注册机器人
 @robot_bp.route('/register', methods=['POST'])
-def manual_register():
+def register_robot():
     data = request.json
     device_id = data.get('device_id')
     name = data.get('name')
@@ -112,9 +117,9 @@ def manual_register():
     return jsonify({"ok": True})
 
 # 3. 删除机器人
-@robot_bp.route('/delete/<int:id>', methods=['POST'])
-def delete_robot(id):
-    robot = Robot.query.get(id)
+@robot_bp.route('/delete/<int:robot_id>', methods=['POST'])
+def delete_robot(robot_id):
+    robot = Robot.query.get(robot_id)
     if robot:
         db.session.delete(robot)
         db.session.commit()
@@ -123,7 +128,7 @@ def delete_robot(id):
 
 # 4. 路径规划
 @robot_bp.route('/navigate', methods=['POST'])
-def navigate_to():
+def navigate_robot():
     data = request.json
     robot = Robot.query.get(data.get('id'))
     if not robot:
@@ -137,7 +142,7 @@ def navigate_to():
 
 # 5. 远程控制 (抓取、复位、停机)
 @robot_bp.route('/control', methods=['POST'])
-def send_control():
+def control_robot():
     data = request.json
     robot = Robot.query.get(data.get('id'))
     if robot:

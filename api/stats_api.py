@@ -2,14 +2,12 @@ from flask import Blueprint, jsonify
 from sqlalchemy import func
 from database.models import DetectTask, DetectItem, Robot
 from database.db import db
-import datetime
-from datetime import datetime as dt
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 stats_bp = Blueprint("stats_bp", __name__)
 
 @stats_bp.route("/summary")
-def get_summary():
+def get_stats_summary():
     try:
         # 1. 垃圾分布地图点位
         tasks = DetectTask.query.filter(DetectTask.latitude.isnot(None)).all()
@@ -30,7 +28,7 @@ def get_summary():
         pie_data = [{"name": row[0], "value": row[1]} for row in label_counts]
 
         # 3. 近期捡拾数量趋势
-        seven_days_ago = datetime.datetime.now() - datetime.timedelta(days=7)
+        seven_days_ago = datetime.now() - timedelta(days=7)
         trend_counts = db.session.query(
             func.date(DetectTask.created_at).label('date'),
             func.count(DetectTask.id)
@@ -45,7 +43,7 @@ def get_summary():
         # 4. 机器人状态与电量（动态评估 online/offline）
         robots = Robot.query.all()
         robot_list = []
-        now = dt.now()
+        now = datetime.now()
         to_update = []
         TIMEOUT = 3
         for r in robots:

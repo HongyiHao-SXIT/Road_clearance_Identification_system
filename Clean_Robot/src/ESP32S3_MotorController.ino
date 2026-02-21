@@ -6,6 +6,9 @@
 
 #include <Arduino.h>
 #include <HardwareSerial.h>
+// Network support for polling server commands
+#include <WiFi.h>
+#include <HTTPClient.h>
 
 // 串口配置
 #define SERIAL_BAUD_RATE 115200
@@ -42,6 +45,18 @@
 
 // 电机速度范围（0-255）
 #define MOTOR_MAX_SPEED 255
+
+// --- Network / device configuration (edit before upload) ---
+const char* WIFI_SSID = "YOUR_SSID";        // <-- set WiFi SSID
+const char* WIFI_PASS = "YOUR_PASS";        // <-- set WiFi password
+const char* SERVER_BASE = "http://192.168.1.100:5000"; // <-- set server base URL
+const char* DEVICE_ID = "robot-001";       // <-- set unique device id matching server
+
+// Poll interval (ms) for server commands
+const unsigned long SERVER_POLL_INTERVAL = 1500;
+
+String _last_server_command = "";
+unsigned long _last_poll = 0;
 
 // 控制模式
 enum ControlMode {
@@ -376,6 +391,23 @@ void setup() {
   // 发送系统状态
   String statusJson = "{\"type\":\"status\",\"data\":{\"system\":\"ready\",\"version\":\"1.0.0\"}}";
   Serial.println(statusJson);
+
+  // --- Connect to WiFi for command polling ---
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  Serial.print("[WiFi] Connecting");
+  unsigned long start = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - start < 10000) {
+    delay(250);
+    Serial.print('.');
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println();
+    Serial.print("[WiFi] Connected, IP=");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println();
+    Serial.println("[WiFi] Connect failed, continuing in offline mode");
+  }
 }
 
 // 主循环
@@ -426,4 +458,114 @@ void loop() {
   
   // 小延迟，稳定系统
   delay(10);
+  // poll server commands periodically
+  pollServerCommands();
+}
+
+// Poll server for commands and execute simple movement commands
+void pollServerCommands() {
+  if (WiFi.status() != WL_CONNECTED) return;
+  if (millis() - _last_poll < SERVER_POLL_INTERVAL) return;
+  _last_poll = millis();
+
+  HTTPClient http;
+  String url = String(SERVER_BASE) + "/api/robot/heartbeat";
+  http.begin(url);
+  http.addHeader("Content-Type", "application/json");
+  // 将模拟位置和电量发送给服务器，模拟 test_robot 的行为
+  String payload = "{\"device_id\":\"" + String(DEVICE_ID) + "\",";
+  payload += "\"lat\":" + String(simLat, 6) + ",";
+  payload += "\"lng\":" + String(simLng, 6) + ",";
+  payload += "\"status\":\"ONLINE\",";
+  payload += "\"battery\":" + String(sensorData.battery) + "}";
+  int code = http.POST(payload);
+  if (code == 200) {
+    String resp = http.getString();
+    // 解析返回 JSON 中的 "command" 和 "target"，实现简单的模拟导航
+    // 1) 解析 command 字段: "command":"..."
+    int idx = resp.indexOf("\"command\"");
+    String cmd = "";
+    if (idx >= 0) {
+      int colon = resp.indexOf(':', idx);
+      if (colon > 0) {
+        int q1 = resp.indexOf('"', colon);
+        int q2 = resp.indexOf('"', q1 + 1);
+        if (q1 >= 0 && q2 > q1) {
+          cmd = resp.substring(q1 + 1, q2);
+        }
+      }
+    }
+
+    // 2) 解析 target 字段: "target":{"lat":...,"lng":...}
+    if (resp.indexOf("\"target\"") >= 0) {
+      int tIdx = resp.indexOf("\"target\"");
+      int latIdx = resp.indexOf("\"lat\"", tIdx);
+      int lngIdx = resp.indexOf("\"lng\"", tIdx);
+      if (latIdx >= 0 && lngIdx >= 0) {
+        int c1 = resp.indexOf(':', latIdx);
+        int c2 = resp.indexOf(':', lngIdx);
+        if (c1 > 0 && c2 > 0) {
+          int comma = resp.indexOf(',', c1);
+          if (comma < 0) comma = resp.indexOf('}', c1);
+          String latStr = resp.substring(c1 + 1, comma);
+          int endLng = resp.indexOf('}', c2);
+          String lngStr = resp.substring(c2 + 1, endLng);
+          targetLat = latStr.toFloat();
+          targetLng = lngStr.toFloat();
+          hasTarget = true;
+        }
+      }
+    }
+
+    // 3) 根据 command 执行动作或更新模拟状态
+    if (cmd.length() > 0 && cmd != _last_server_command) {
+      Serial.print("[ServerCmd] "); Serial.println(cmd);
+      _last_server_command = cmd;
+      if (cmd == "FORWARD") {
+        setMotorSpeed(0, 180);
+        setMotorSpeed(1, 180);
+      } else if (cmd == "BACK") {
+        setMotorSpeed(0, -150);
+        setMotorSpeed(1, -150);
+      } else if (cmd == "LEFT") {
+        setMotorSpeed(0, -120);
+        setMotorSpeed(1, 120);
+      } else if (cmd == "RIGHT") {
+        setMotorSpeed(0, 120);
+        setMotorSpeed(1, -120);
+      } else if (cmd == "STOP") {
+        setMotorSpeed(0, 0);
+        setMotorSpeed(1, 0);
+      } else if (cmd == "IDLE") {
+        // ignore
+      } else if (cmd == "NAVIGATE") {
+        // 接收到导航命令时，如果有 target，则开始在地图上模拟靠近目标
+        if (hasTarget) {
+          Serial.print("[Nav] New target set: ");
+          Serial.print(targetLat, 6);
+          Serial.print(", ");
+          Serial.println(targetLng, 6);
+        }
+      } else {
+        // 其它 JSON 字符串命令交给 parseCommand 处理（如电机/配置）
+        parseCommand(cmd);
+      }
+    }
+
+    // 4) 在每次心跳后，让模拟坐标向目标移动一点（类似 test_robot）
+    if (hasTarget) {
+      float dLat = targetLat - simLat;
+      float dLng = targetLng - simLng;
+      // 步长比例，越小越慢
+      float step = 0.1f;
+      simLat += dLat * step;
+      simLng += dLng * step;
+      // 接近目标时认为到达
+      if (fabs(dLat) < 0.00005f && fabs(dLng) < 0.00005f) {
+        hasTarget = false;
+        Serial.println("[Nav] Reached target (simulation)");
+      }
+    }
+  }
+  http.end();
 }

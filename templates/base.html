@@ -14,12 +14,19 @@
     <div class="layout-main">
         <div class="layout-header">
             <div class="layout-header-left">
-                <div class="header-date"></div>
-                <div class="header-week">载入中...</div>
+                <div style="display: flex; align-items: center;">
+                    <a href="javascript:history.back()" style="color: #fff; margin-right: 15px; text-decoration: none; font-size: 14px;">&lt; 返回</a>
+                    <a href="{{ url_for('web_bp.index') }}" style="color: #fff; margin-right: 15px; text-decoration: none; font-size: 14px;">首页</a>
+                    <a href="{{ url_for('web_bp.upload') }}" style="color: #fff; margin-right: 15px; text-decoration: none; font-size: 14px;">上传检测</a>
+                    <a href="{{ url_for('web_bp.result') }}" style="color: #fff; margin-right: 15px; text-decoration: none; font-size: 14px;">检测结果</a>
+                    <a href="{{ url_for('web_bp.stats_page') }}" style="color: #fff; margin-right: 15px; text-decoration: none; font-size: 14px;">统计分析</a>
+                    <a href="{{ url_for('web_bp.robot_admin') }}" style="color: #fff; margin-right: 15px; text-decoration: none; font-size: 14px;">机器人管理</a>
+                </div>
             </div>
             <div class="layout-header-center">TrashDet 垃圾拾捡机器人管理系统</div>
             <div class="layout-header-right">
-                <p>系统版本: V 1.2.0</p>
+                <div class="header-date" style="display: inline-block; margin-right: 10px;"></div>
+                <div class="header-week" style="display: inline-block;">载入中...</div>
             </div>
         </div>
 
